@@ -1,0 +1,144 @@
+---
+title: "Practical_1"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this practical, you will analyse data pertaining to customer waiting times in a governmental office. The data provided to you in the waiting.csv file are daily average waiting times from January 3, 2017 to October 26, 2018.
+
+
+As a business analyst, your goal is to model and monitor the time customers spend waiting, and to take action if the service quality deteriorates too badly, i.e. if waiting times are unacceptably high.
+
+
+(a) Read in the data and plot the daily waiting times. Compute and display the five-number summary (boxplot) of the daily waiting times for each weekday. What do you observe?
+
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(broom)
+#loading the data
+data <- read.csv(here::here("waiting.csv"))
+
+#plotting the time series
+data %>% 
+  ggplot(aes(Date, Average.Wait.Seconds, group = 1)) + 
+  geom_line()
+
+#showing the five-number summary 
+summary(data$Average.Wait.Seconds)
+
+#five-number summary of waiting time per weekday
+data %>% 
+  group_by(Weekday) %>% 
+  summarise(
+    min = min(Average.Wait.Seconds),
+    q1 = quantile(Average.Wait.Seconds, 0.25), 
+    mean = mean(Average.Wait.Seconds), 
+    q3 = quantile(Average.Wait.Seconds, 0.75), 
+    max = max(Average.Wait.Seconds)
+  )
+
+#plotting the boxplot per weekday
+data %>% 
+  ggplot(aes(Weekday, Average.Wait.Seconds, fill = Weekday)) +
+  geom_boxplot()
+
+```
+
+(b) Using a normal approximation, produce an upper control limit or confidence line for the waiting times at the one-year return level. What do you notice? Using a Q-Q plot, comment on whether the Normal model is appropriate.
+
+```{r}
+#not sure
+library(Rmisc)
+CI(scale(data$Average.Wait.Seconds), ci=0.95)
+
+```
+
+```{r qqplot}
+
+qqnorm(scale(data$Average.Wait.Seconds)) 
+qqline(scale(data$Average.Wait.Seconds))
+
+
+```
+
+
+(c) The aim of this analysis is to focus on negative effects (long wait times). Explain how you would proceed using 1) a block maxima and 2) a peaks-over-threshold approach. For each method, carry out the required data aggregation and transformation.
+
+
+Using a block maxima:
+- Divide data in m blocks, having each n observations 
+- fit a generalized extreme value distribution with maximum lokelihood estimation 
+- Find the parameter with standard deviation and confidence intervals 
+- check diagnostic using the qqplot 
+
+```{r likelihood function}
+
+#likelihood function 
+loglik_gev <- function(x, mu, sigma, xi) {
+n <- length(x)
+z <- (x - mu)/sigma
+if (any(1 + xi * z <= 0)) { # enforce support
+return(-1e9) }
+if (abs(xi) < 1e-9) { # Gumbel case
+out <- -n*log(sigma) - sum(exp(-z)) - sum(z)
+} else { # Frechet or Weibull
+out <- -n*log(sigma) - (1/xi+1)*sum(log(1+xi*z)) - sum((1+xi*z)^(-1/xi))
+}
+     return(out)
+   }
+
+```
+
+
+```{r optim function}
+
+starting_values <- c(mean(data$Average.Wait.Seconds), sd(data$Average.Wait.Seconds), 0)
+fit_gev <- optim(
+starting_values,
+fn = function(p) loglik_gev(data$Average.Wait.Seconds, p[1], p[2], p[3]),
+control = list(fnscale = -1), 
+method = "L-BFGS-B",
+hessian = TRUE
+)
+
+```
+
+```{r optimum parameters estimated}
+
+#this should be x, mu and sigma 
+fit_gev$par
+
+```
+
+````{r estimate of the upper-end point}
+
+346.59532243 - 165.92095282 / (-0.01612798)
+
+```
+The total waiting time never exceeds 10'635 seconds in any given day.
+
+Using a peaks-over-theshold approach:
+- 
+
+(d) Propose a model for the data you have processed in the previous question. Make sure to justify your model choice using residuals and goodness-of-fit tests. (Hint: you may use the evd package.)
+
+
+```{r}
+
+
+```
+
+(e) Finally, use your model to derive an upper control limit or confidence line for the waiting times at the one-year return level.
+
+```{r}
+
+
+
+```
+
