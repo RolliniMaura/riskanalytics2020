@@ -24,6 +24,8 @@ library(broom)
 #loading the data
 data <- read.csv(here::here("waiting.csv"))
 
+plot(data[,3], type = "b")
+
 #plotting the time series
 data %>% 
   ggplot(aes(Date, Average.Wait.Seconds, group = 1)) + 
