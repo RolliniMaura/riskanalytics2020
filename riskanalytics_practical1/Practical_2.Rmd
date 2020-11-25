@@ -1,0 +1,132 @@
+---
+title: "Practical_2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this second practical, we will look at product sales data belonging to a large American retailer. 
+
+As the person in charge of re-stocking products after they are sold, you would like to avoid a ‘stock-out’, that is, when on a given day there are not enough products to satisfy customer demand.
+
+Consider the observations recorded in sales 1.txt, which contain the daily sales volumes of Product 1 over n = 1913 days.
+
+(a) Construct a figure which shows the daily sales volume, and study the values just before the product is out of stock. What do you notice? Explain why this is related to stock-out.
+
+```{r loading data}
+
+library(dplyr)
+library(magrittr)
+sales <- read.delim(here::here("sales_1.txt"), header = FALSE)
+sales %<>% dplyr::rename(Sales = V1)
+
+```
+
+
+```{r daily sales}
+
+sales %>% 
+  mutate(time = 1:1913) %>% 
+  ggplot(aes(time, Sales)) + geom_line()
+  
+```
+
+(b) Assume Product 1 is a perishable good sold at a constant price of 10.– over the time period considered. Items of Product 1 are produced at cost 1.– and items which are unsold can be salvaged at 10% of cost, that is, at value s = 10 ct. Suppose that the sales of Product 1 are distributed according to F. Using the newsvendor model, give a formula for the critical fractile q = F−1(p).
+
+```{r NVM}
+# Import SCperf package
+library(SCperf)
+
+# Set mean demand
+D <- mean(sales$Sales)
+
+# Set standard deviation of the demand (in units)
+sd <- sd(sales$Sales)
+
+# Set selling price
+p <- as.numeric(10)
+
+# Set unit cost
+c <- as.numeric(1)
+
+# Set salvage value
+s <- as.numeric(0.1)
+
+# Get Newsboy Model Results 
+Newsboy <- Newsboy(D, sd, p, c, s)
+
+Q <- as.numeric(Newsboy[1])
+print(paste("Optimal order-up-to quantity:", ceiling(Q)))
+
+SS <- as.numeric(Newsboy[2])
+print(paste("Safety stock:", ceiling(SS)))
+
+ExpC <- as.numeric(Newsboy[3])
+print(paste("Expected cost:", round(ExpC, 2)))
+
+ExpP <- as.numeric(Newsboy[4])
+print(paste("Expected profit:", round(ExpP, 2)))
+
+```
+source: https://medium.com/analytics-vidhya/newsvendor-inventory-problem-with-r-ccfc5a505f38
+
+(c) Explain how the critical fractile is related to the Value at Risk, and give an interpretation of the Expected Shortfall at the level p.
+
+The *critical fractile*, balances the cost of being understocked and the total costs of being either overstocked or understocked, and it gives the optimal quantity that should be produced to minimizes the costs, and hence maximizes the profit, which optimize the probability that the demand is lower than the quantity Q that we have ordered.
+
+The *Value at Risk* (VaR) denotes a quantile of the distribution, which is  the smallest number such that the random variable X that we are studying exceeds a value x with probability lower than 1 - alpha. In other words, with probability alpha, the variable X will be smaller than VaR. 
+
+Hence, the relation between these two parameters, is given by the fact that they are both quantiles that give the optimal value, after which the result will be suboptimal. 
+<!-- Not sure -->
+
+The *Expected Shortfall* at level alpha is the average value of X, when it is higher than VaR. It is related to VaR by 
+
+$$ ES = \frac{1}{1 - \alpha} \int_\alpha^{1}q_u (F_X)du $$
+
+The Expected Shortfall at level p will then be the value of the sales if they are higher then the VaR, which in this case will correspond to the critical fractile. 
+<!-- Does it make any sense? Not sure at all -->
+
+(d) Fit a Poisson model to the sales volume data by assuming that Yi ∼ Poisson(μ) and using
+maximum likelihood estimation for μ. (Hint: you may use MASS::fitdistr). According to this model, what is the estimated critical fractile?
+
+
+```{r poisson}
+
+library(MASS)
+poisson <- fitdistr(sales$Sales, "Poisson")
+
+# Set mean demand
+D <- poisson$estimate
+
+# Set standard deviation of the demand (in units)
+sd <- poisson$sd
+
+# Set selling price
+p <- as.numeric(10)
+
+# Set unit cost
+c <- as.numeric(1)
+
+# Set salvage value
+s <- as.numeric(0.1)
+
+# Get Newsboy Model Results 
+Newsboy <- Newsboy(D, sd, p, c, s)
+
+Q <- as.numeric(Newsboy[1])
+print(paste("Optimal order-up-to quantity:", ceiling(Q)))
+
+```
+
+(e) Suppose we model the sales as an extreme value distribution using a peaks-over-thresholds method. Give the Value at Risk at level p under this model.
+
+```{r}
+
+
+```
+
+
+(f) Perform a binomial back-test over the last 300 days in the dataset for the models in d) and e), using a window size of 365 days. What are your conclusions?
+
