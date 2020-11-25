@@ -13,27 +13,29 @@ As the person in charge of re-stocking products after they are sold, you would l
 
 Consider the observations recorded in sales 1.txt, which contain the daily sales volumes of Product 1 over n = 1913 days.
 
-(a) Construct a figure which shows the daily sales volume, and study the values just before the product is out of stock. What do you notice? Explain why this is related to stock-out.
+> (a) Construct a figure which shows the daily sales volume, and study the values just before the product is out of stock. What do you notice? Explain why this is related to stock-out.
 
 ```{r loading data}
 
 library(dplyr)
 library(magrittr)
+library(TSstudio)
 sales <- read.delim(here::here("sales_1.txt"), header = FALSE)
 sales %<>% dplyr::rename(Sales = V1)
 
 ```
 
 
-```{r daily sales}
+```{r daily sales, fig.width=15}
 
-sales %>% 
-  mutate(time = 1:1913) %>% 
-  ggplot(aes(time, Sales)) + geom_line()
+
+sales_xts <- xts(sales$Sales, order.by = as.Date(1:1913))
+plot(sales_xts, type = "l", main = "Daily Sales")
+ts_plot(sales_xts, title = "Daily Sales")
   
 ```
 
-(b) Assume Product 1 is a perishable good sold at a constant price of 10.– over the time period considered. Items of Product 1 are produced at cost 1.– and items which are unsold can be salvaged at 10% of cost, that is, at value s = 10 ct. Suppose that the sales of Product 1 are distributed according to F. Using the newsvendor model, give a formula for the critical fractile q = F−1(p).
+> (b) Assume Product 1 is a perishable good sold at a constant price of 10.– over the time period considered. Items of Product 1 are produced at cost 1.– and items which are unsold can be salvaged at 10% of cost, that is, at value s = 10 ct. Suppose that the sales of Product 1 are distributed according to F. Using the newsvendor model, give a formula for the critical fractile q = F−1(p).
 
 ```{r NVM}
 # Import SCperf package
@@ -72,13 +74,13 @@ print(paste("Expected profit:", round(ExpP, 2)))
 ```
 source: https://medium.com/analytics-vidhya/newsvendor-inventory-problem-with-r-ccfc5a505f38
 
-(c) Explain how the critical fractile is related to the Value at Risk, and give an interpretation of the Expected Shortfall at the level p.
+> (c) Explain how the critical fractile is related to the Value at Risk, and give an interpretation of the Expected Shortfall at the level p.
 
-The *critical fractile*, balances the cost of being understocked and the total costs of being either overstocked or understocked, and it gives the optimal quantity that should be produced to minimizes the costs, and hence maximizes the profit, which optimize the probability that the demand is lower than the quantity Q that we have ordered.
+The *critical fractile*, balances the cost of being understocked and the total costs of being either overstocked or understocked, and it gives the optimal quantity that should be produced to minimizes the costs. It's the quantile which optimize the probability that the demand is lower than the quantity Q that we have ordered.
 
 The *Value at Risk* (VaR) denotes a quantile of the distribution, which is  the smallest number such that the random variable X that we are studying exceeds a value x with probability lower than 1 - alpha. In other words, with probability alpha, the variable X will be smaller than VaR. 
 
-Hence, the relation between these two parameters, is given by the fact that they are both quantiles that give the optimal value, after which the result will be suboptimal. 
+Hence, the relation between these two parameters, is given by the fact that they are both quantiles that give the optimal value, if we consider the optimal value Q as the thershold after which we have the extreme values of the distribution of the demand, the critical fractile and the value at risk are basically denoting the same thing.
 <!-- Not sure -->
 
 The *Expected Shortfall* at level alpha is the average value of X, when it is higher than VaR. It is related to VaR by 
@@ -88,7 +90,7 @@ $$ ES = \frac{1}{1 - \alpha} \int_\alpha^{1}q_u (F_X)du $$
 The Expected Shortfall at level p will then be the value of the sales if they are higher then the VaR, which in this case will correspond to the critical fractile. 
 <!-- Does it make any sense? Not sure at all -->
 
-(d) Fit a Poisson model to the sales volume data by assuming that Yi ∼ Poisson(μ) and using
+> (d) Fit a Poisson model to the sales volume data by assuming that Yi ∼ Poisson(μ) and using
 maximum likelihood estimation for μ. (Hint: you may use MASS::fitdistr). According to this model, what is the estimated critical fractile?
 
 
@@ -121,7 +123,7 @@ print(paste("Optimal order-up-to quantity:", ceiling(Q)))
 ```
 The critical fractile appears to be `r ceiling(Q)`.
 
-(e) Suppose we model the sales as an extreme value distribution using a peaks-over-thresholds method. Give the Value at Risk at level p under this model.
+> (e) Suppose we model the sales as an extreme value distribution using a peaks-over-thresholds method. Give the Value at Risk at level p under this model.
 
 ```{r}
 
@@ -153,5 +155,84 @@ source: https://www.gis-blog.com/eva-intro-3/
 
 
 
-(f) Perform a binomial back-test over the last 300 days in the dataset for the models in d) and e), using a window size of 365 days. What are your conclusions?
+> (f) Perform a binomial back-test over the last 300 days in the dataset for the models in d) and e), using a window size of 365 days. What are your conclusions?
+
+To backtest:
+- Split the data in two parts: one group will be the historical data used to determine the VaR, the other group will be the one on which we test the VaR 
+- At each time we will use a window of size 365 days to estimate the VaR at the new point in time 
+- We compare the estimated values with the real ones 
+- If the real value is larger the VaR there is a violation 
+- Perform a Bernoulli test to see if the number of violation is equal to the expected number 
+
+
+We will split the data in two subgroups, the first one being the training set which we will use to estimate the VaR will comprehend the observations up to the last 300 days of the data, while the last 300 observations will be the test set to which we will compare the VaR we will find. 
+
+```{r split data}
+
+salesTrain_xts <- sales_xts[(1:(nrow(sales_xts)-300)),]
+salesTest_xts <- sales_xts[((nrow(sales_xts)-300):(nrow(sales_xts)))]
+
+```
+
+```{r VaR estimation}
+
+```
+
+```{r likelihood function}
+
+#likelihood function 
+loglik_gev <- function(x, mu, sigma, xi) {
+n <- length(x)
+z <- (x - mu)/sigma
+if (any(1 + xi * z <= 0)) { # enforce support
+return(-1e9) }
+if (abs(xi) < 1e-9) { # Gumbel case
+out <- -n*log(sigma) - sum(exp(-z)) - sum(z)
+} else { # Frechet or Weibull
+out <- -n*log(sigma) - (1/xi+1)*sum(log(1+xi*z)) - sum((1+xi*z)^(-1/xi))
+}
+     return(out)
+   }
+
+```
+
+
+```{r optim function}
+
+starting_values <- c(mean(salesTrain_xts[1:100]), sd(salesTrain_xts[1:100]), 0)
+fit_gev <- optim(
+starting_values,
+fn = function(p) loglik_gev(data$Average.Wait.Seconds, p[1], p[2], p[3]),
+control = list(fnscale = -1), 
+method = "L-BFGS-B",
+hessian = TRUE
+)
+
+```
+
+```{r optimum parameters estimated}
+
+#this should be mu, sigma and csi 
+fit_gev$par
+
+mu <- fit_gev$par[1]
+sigma <- fit_gev$par[2]
+xi <- fit_gev$par[3]
+
+PerformanceAnalytics::VaR(R = salesTrain_xts[1:100], method = "historical", p = 0.95, mu = mu, sigma = sigma)
+
+```
+
+```{r comparison}
+
+BacktestVaR(data, VaR, alpha, Lags = 4)
+
+```
+
+```{r bernoulli test}
+
+
+
+```
+
 
