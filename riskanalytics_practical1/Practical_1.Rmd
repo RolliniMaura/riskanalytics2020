@@ -121,7 +121,35 @@ fit_gev$par
 346.59532243 - 165.92095282 / (-0.01612798)
 
 ```
+
+```{r another way to plot}
+
+library(fExtremes)
+blockMaxima(data$Average.Wait.Second, block = as.numeric(data$Date), doplot = TRUE)
+findThreshold(data$Average.Wait.Second, n = floor(0.05*length(as.vector(data$Average.Wait.Second))), doplot = TRUE)
+
+```
 The total waiting time never exceeds 10'635 seconds in any given day.
+
+
+```{method found online not sure what it is}
+
+# load required packages
+library(extRemes)
+library(xts)
+
+# derive AMS for maximum precipitation
+wait_xts <- xts(data$Average.Wait.Seconds, order.by = as.Date(data$Date))
+ams <- apply.yearly(wait_xts, max)
+
+# maximum-likelihood fitting of the GEV distribution
+fit_mle <- fevd(as.vector(wait_xts[,1]), method = "MLE", type="GEV")
+# diagnostic plots
+plot(fit_mle)
+# return levels:
+rl_mle <- return.level(fit_mle, conf = 0.05, return.period= c(2,5,10,20,50,100))
+
+```
 
 Using a peaks-over-theshold approach:
 - 
