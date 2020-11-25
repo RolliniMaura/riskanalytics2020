@@ -119,13 +119,38 @@ Q <- as.numeric(Newsboy[1])
 print(paste("Optimal order-up-to quantity:", ceiling(Q)))
 
 ```
+The critical fractile appears to be `r ceiling(Q)`.
 
 (e) Suppose we model the sales as an extreme value distribution using a peaks-over-thresholds method. Give the Value at Risk at level p under this model.
 
 ```{r}
 
+library(POT)
+#this should help us choose the threshold but it does not become linear
+tcplot(sales$Sales, u.range = c(0.9, 0.995))
+#this should give the mean of the GDP
+POT::mrlplot(sales$Sales, u.range = c(1, quantile(sales$Sales, probs = 0.995)), col = c("green", "black", "green"), nt = 200)
+
+#this should be the fitting of the EVD
+fitgpd(sales$Sales, thresh = 1, shape = 0, est = "mle")
+
+sales_xts <- xts(sales$Sales, order.by = as.Date(1:1913))
+extRemes::mrlplot(sales_xts[,1], main="Mean Residual Life Plot")
+extRemes::threshrange.plot(sales_xts, r = c(180, 200), nint = 20)
+
+
+#let's fix the threshold at 190 as after it the distribution seems to be flat 
+th <- 190
+
+pot_mle <- fevd(as.vector(sales_xts), method = "MLE", type="GP", threshold=th)
+plot(pot_mle)
+
+#Value at Risk 
+VaR(sales_xts, alpha = 0.05)
 
 ```
+source: https://www.gis-blog.com/eva-intro-3/
+
 
 
 (f) Perform a binomial back-test over the last 300 days in the dataset for the models in d) and e), using a window size of 365 days. What are your conclusions?
