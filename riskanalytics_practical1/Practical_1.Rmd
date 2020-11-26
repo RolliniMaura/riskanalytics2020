@@ -21,48 +21,132 @@ As a business analyst, your goal is to model and monitor the time customers spen
 library(dplyr)
 library(ggplot2)
 library(broom)
+
 #loading the data
 data <- read.csv(here::here("waiting.csv"))
+data$Date<-as.Date(data$Date)
 
 #plotting the time series
 data %>% 
-  ggplot(aes(Date, Average.Wait.Seconds, group = 1)) + 
-  geom_line()
+  ggplot(aes(Date, Average.Wait.Seconds, group = 1, cex.names=0.1)) + 
+  geom_line()+
+  theme_bw()+
+  scale_x_date(limits = as.Date(c("2017-01-03","2018-10-26"))) +
+  labs(x = "Date", y = "Average Wait (Seconds)",  title = "Daily Plot")+
+  theme(plot.title = element_text(face = "bold", hjust = 0.5)) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5, size = 8)) +
+  theme(axis.text.y = element_text(hjust = 0.5, size = 8)) 
 
-#showing the five-number summary 
+
+```
+
+Next, Compute and display the five-number summary (boxplot) of the daily waiting times for each weekday. What do you observe?
+
+
+```{r}
+
+#showing the five-number summary of all the data 
 summary(data$Average.Wait.Seconds)
 
 #five-number summary of waiting time per weekday
-data %>% 
-  group_by(Weekday) %>% 
-  summarise(
-    min = min(Average.Wait.Seconds),
-    q1 = quantile(Average.Wait.Seconds, 0.25), 
-    mean = mean(Average.Wait.Seconds), 
-    q3 = quantile(Average.Wait.Seconds, 0.75), 
-    max = max(Average.Wait.Seconds)
-  )
+
+summary5_weekday<- data %>% 
+                      group_by(Weekday) %>% 
+                      summarise(Min = min(Average.Wait.Seconds),
+                                Q1 = quantile(Average.Wait.Seconds, 0.25), 
+                                Mean = mean(Average.Wait.Seconds), 
+                                Q3 = quantile(Average.Wait.Seconds, 0.75), 
+                                Max = max(Average.Wait.Seconds))
+
+library(kableExtra)
+kable(summary5_weekday, caption = "Five-number summary by weekday")%>%
+  kable_styling("striped") 
+
+#changing the order for the labels in the axis x for the boxplot per weekday
+
+data$Weekday <- factor(data$Weekday, levels = c('Monday', 'Tuesday', 'Wednesday',
+                                                'Thursday','Friday' ))
 
 #plotting the boxplot per weekday
 data %>% 
   ggplot(aes(Weekday, Average.Wait.Seconds, fill = Weekday)) +
-  geom_boxplot()
+  geom_boxplot()+
+  theme_bw()+
+  labs(x = "Day", y = "Average Wait (Seconds)",  title = "Boxplot by weekday")+
+  theme(plot.title = element_text(face = "bold", hjust = 0.5)) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5, size = 10)) +
+  theme(axis.text.y = element_text(hjust = 0.5, size = 8))
+
+
+
 
 ```
 
-(b) Using a normal approximation, produce an upper control limit or confidence line for the waiting times at the one-year return level. What do you notice? Using a Q-Q plot, comment on whether the Normal model is appropriate.
+
+Observations:
+
+- The average per weekday are similar within them, nevertheless, the highest average is made in friday.
+- The highest waiting time is on wednesday
+
+
+(b) Using a normal approximation produce an upper control limit or confidence line for the waiting times at the one-year return level. What do you notice? Using a Q-Q plot, comment on whether the Normal model is appropriate.
 
 ```{r}
-#not sure
+
+#not sure either :(
+
+##########################option1###########################################
+
 library(Rmisc)
-CI(scale(data$Average.Wait.Seconds), ci=0.95)
+#CI(scale(data$Average.Wait.Seconds), ci=0.95)  
+CI(data$Average.Wait.Seconds, ci=0.95)
+
+############################option2###########################################
+
+#Assuming that incomes are normally distributed
+
+#95% CI--> alpha = 0.05 We can get z(alpha/2) = z(0.025) from R:
+nrow(data)
+qnorm(.975)   #1.959964
+mean(data$Average.Wait.Seconds) #440.6398
+sd(data$Average.Wait.Seconds)
+
+#Our margin of error is 
+
+ub<- mean(data$Average.Wait.Seconds)+
+      qnorm(0.975)*(sd(data$Average.Wait.Seconds)/sqrt(nrow(data)))
+ub
+
+#not need of the lower bound
+#lb<- mean(data$Average.Wait.Seconds)-
+#      qnorm(0.975)*(sd(data$Average.Wait.Seconds)/sqrt(nrow(data)))
+
+data %>% 
+  ggplot(aes(Date, Average.Wait.Seconds, group = 1, cex.names=0.1)) + 
+  geom_line()+
+  theme_bw()+
+  scale_x_date(limits = as.Date(c("2017-01-03","2018-10-26"))) +
+  labs(x = "Date", y = "Average Wait (Seconds)",  title = "Daily Plot")+
+  theme(plot.title = element_text(face = "bold", hjust = 0.5)) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5, size = 8)) +
+  theme(axis.text.y = element_text(hjust = 0.5, size = 8)) +
+    geom_hline(aes(yintercept=ub), colour="red", linetype="solid") #dashed
+
+
 
 ```
+
+- The probability that the upper bound won't be exceeded during the 1-year return period is quite high, due to the upper bound do not considere the extreme values.
 
 ```{r qqplot}
 
-qqnorm(scale(data$Average.Wait.Seconds)) 
-qqline(scale(data$Average.Wait.Seconds))
+########################the normal approximation
+
+qqnorm(data$Average.Wait.Seconds, pch = 1, frame = FALSE, 
+       main = "Q-Q plot")
+qqline(data$Average.Wait.Seconds, col = "steelblue", lwd = 2)
+
+#as you can see the data is not normal is right-skewed (or positively skewed) because we see the upper end of the Q-Q plot to deviate from the straight line and the lower and follows a straight line then the curve has a longer till to its right 
 
 
 ```
@@ -71,93 +155,196 @@ qqline(scale(data$Average.Wait.Seconds))
 (c) The aim of this analysis is to focus on negative effects (long wait times). Explain how you would proceed using 1) a block maxima and 2) a peaks-over-threshold approach. For each method, carry out the required data aggregation and transformation.
 
 
-Using a block maxima:
+Using block maxima approach
+
+- Each observations are iid with a distribution function.
+- Let Mn = max (X1, . . . ,Xn) be the worst–case value among the n observations.
+- Normalized observations
+- Check if normalized maxima converge in distribution to a non–degenerate limit.
+- Check F is in the maximum domain of attraction of H, or F belongs to MDA(H)
+
+
 - Divide data in m blocks, having each n observations 
 - fit a generalized extreme value distribution with maximum lokelihood estimation 
 - Find the parameter with standard deviation and confidence intervals 
 - check diagnostic using the qqplot 
 
-```{r likelihood function}
 
-#likelihood function 
-loglik_gev <- function(x, mu, sigma, xi) {
-n <- length(x)
-z <- (x - mu)/sigma
-if (any(1 + xi * z <= 0)) { # enforce support
-return(-1e9) }
-if (abs(xi) < 1e-9) { # Gumbel case
-out <- -n*log(sigma) - sum(exp(-z)) - sum(z)
-} else { # Frechet or Weibull
-out <- -n*log(sigma) - (1/xi+1)*sum(log(1+xi*z)) - sum((1+xi*z)^(-1/xi))
-}
-     return(out)
-   }
-
-```
-
-
-```{r optim function}
-
-starting_values <- c(mean(data$Average.Wait.Seconds), sd(data$Average.Wait.Seconds), 0)
-fit_gev <- optim(
-starting_values,
-fn = function(p) loglik_gev(data$Average.Wait.Seconds, p[1], p[2], p[3]),
-control = list(fnscale = -1), 
-method = "L-BFGS-B",
-hessian = TRUE
-)
-
-```
-
-```{r optimum parameters estimated}
-
-#this should be x, mu and sigma 
-fit_gev$par
-
-```
-
-````{r estimate of the upper-end point}
-
-346.59532243 - 165.92095282 / (-0.01612798)
-
-```
-
-```{r another way to plot}
-
-library(fExtremes)
-blockMaxima(data$Average.Wait.Second, block = as.numeric(data$Date), doplot = TRUE)
-findThreshold(data$Average.Wait.Second, n = floor(0.05*length(as.vector(data$Average.Wait.Second))), doplot = TRUE)
-
-```
-The total waiting time never exceeds 10'635 seconds in any given day.
-
-
-```{method found online not sure what it is}
+```{r}
 
 # load required packages
-library(extRemes)
-library(xts)
+#library(extRemes)
+#library(Lmoments)
+#library(distillery)
+#library(xts)
+#library(evd)
 
+#we should first extract the annual maximum temperature values. 
+#This idea is called the block maxima.
+
+
+#week variable creation
 # derive AMS for maximum precipitation
-wait_xts <- xts(data$Average.Wait.Seconds, order.by = as.Date(data$Date))
-ams <- apply.yearly(wait_xts, max)
 
-# maximum-likelihood fitting of the GEV distribution
-fit_mle <- fevd(as.vector(wait_xts[,1]), method = "MLE", type="GEV")
+data_ts <- xts(data$Average.Wait.Seconds, order.by = data$Date) #time series creation
+
+wms_data <- apply.weekly(data_ts, max) #create the weekly maximal serie
+
+plot(wms_data, main = "Block maxima", type = "l", col = "darkblue", lwd = 1.5, 
+     cex.lab = 1.25, xlab = "Year", ylab = "Maximum winter temperature")
+
+#According to the Fisher–Tippett–Gnedenko theorem, the distribution of block maxima can be approximated by a generalized extreme value distribution.
+
+fit <- fevd(as.vector(wms_data),method = "MLE", type = "GEV")
+summary(fit)   #ξ < 0 -->  negative could be a weibull distribution 
+
 # diagnostic plots
-plot(fit_mle)
+plot(fit)
+
 # return levels:
-rl_mle <- return.level(fit_mle, conf = 0.05, return.period= c(2,5,10,20,50,100))
+rl_gev <- return.level(fit, conf = 0.05, return.period= c(2,5,10,20,50,100))
+
+
+CI_delta <- ci(fit, return.period = 20, verbose = T) #according to the bottom right graph
+
+#lets improve the bound:
+
+CI_prof <- ci(fit, method="proflik", xrange = c(900, 1300),
+                return.period = 20, verbose = TRUE)
+
+
+#lets add the bounderies 
+
+hist(as.vector(wms_data), 15, col = "lightblue",
+     xlim = c(0, 1300), prob = T, ylim = c(0, 0.003),
+     xlab = "annual max (0.01 in)",
+     main = "95% CI for 50-yr RL")
+
+xg <- seq(0, 1300, len = 1000)
+
+mle <- fit$results$par
+
+lines(xg, dgev(xg, loc = mle[1], 
+               scale = mle[2], shape = mle[3]))
+
+for (i in 1:3) abline(v = CI_delta[i], lty = 2, col = "blue")
+for (i in 1:3) abline(v = CI_prof[i], lty = 3, col = "red")
+legend("topleft", legend = c("Delta", "Prof"),
+       col = c("blue", "red"), lty = c(2, 3))
+
+fit2 <- fevd(wms_data, data = wms_data,
+             location.fun = ~wms_data)
+
+lr.test(fit, fit2) #fit2 better
+
 
 ```
 
+
 Using a peaks-over-theshold approach:
-- 
+
+
+```{r, fig.asp=2}
+
+# fitting the GPD model over a range of thresholds
+#threshrange.plot(x = as.vector(data_ts), r = c(600, 800))
+#threshrange.plot(as.vector(data_ts), r = c(600, 800), nint = 16)
+
+#where the qqnorm function
+#that allows for the confidence bands is contributed by Peter Guttorp.
+
+
+par(mfrow = c(3, 1))
+plot(data_ts , xlab = "daily",  ylab = "jfjfbfj", 
+     cex = 1.25, cex.lab = 1.25, col = "darkblue", bg = "lightblue", pch = 21)
+plot(log(data_ts), xlab = "daily",ylab = "ln(average waiting time)", ylim = c(4, 8), 
+     cex.lab = 1.25, col = "darkblue", bg = "lightblue", pch = 21)
+qqnorm(log(data_ts), ylim = c(4, 8), cex.lab = 1.25)
+
+
+
+```
+
+
+
+
+```{r}
+
+# The idea is to ﬁnd the lowest threshold where the plot is nearly linear;
+mrlplot(as.vector(data_ts), main="Mean Residual Life Plot") #around 600 start to be linear
+threshold <- 600
+
+plot(x = rep(1:447, each = n), y = unlist(data_ts), main = "Peak Over Thresholds",
+     sub = paste("threshold =", threshold), xlab = "series", ylab = "value")
+abline(h = threshold, col = "red")
+
+# maximum likelihood estimation
+pot_mle <- fevd(as.vector(data_ts), method = "MLE", type="GP", threshold = threshold)
+
+# diagnostic plots
+plot(pot_mle)
+rl_mle <- return.level(pot_mle, conf = 0.05, return.period= c(2,5,10,20,50,100))
+
+#we need to assure the following trade-off: threshold too low – bias because of the model asymptotics being invalid; threshold too high – variance is large due to few data points.
+
+
+CI_delta_pot <- ci(pot_mle, return.period = 10, verbose = T) 
+
+CI_delta_pot
+
+CI_prof_delta <- ci(pot_mle, method="proflik", xrange = c(900, 2100),   
+                    return.period = 10, verbose = TRUE)
+
+
+#lets add the bounderies 
+
+hist(as.vector(data_ts), 15, col = "lightblue",
+     xlim = c(600, 1300), prob = T, ylim = c(0, 0.003),
+     xlab = "annual max (0.01 in)",
+     main = "95% CI for 50-yr RL")
+
+xg <- seq(0, 1300, len = 1000)
+mle <- pot_mle$results$par
+lines(xg, dgpd(xg, loc = 600, 
+               scale = mle[1], shape = mle[2]))
+
+for (i in 1:3) abline(v = CI_delta[i], lty = 2, col = "blue")
+for (i in 1:3) abline(v = CI_prof[i], lty = 3, col = "red")
+legend("topleft", legend = c("Delta", "Prof"),
+       col = c("blue", "red"), lty = c(2, 3))
+
+fit2 <- fevd(data_ts, data = data_ts,
+             location.fun = ~ data_ts)
+
+lr.test(fit, fit2) #fit2 better
+
+
+
+
+
+```
+
 
 (d) Propose a model for the data you have processed in the previous question. Make sure to justify your model choice using residuals and goodness-of-fit tests. (Hint: you may use the evd package.)
 
 
 ```{r}
+#######option 1## Point process representation
+
+
+# maximum likelihood estimation
+pot_pp <- fevd(as.vector(data_ts),  type="PP", threshold = threshold)
+
+
+#################### diagnostic plots--> ask why it not run????????
+
+#plot(pot_pp, type = "density", 
+     main = "Empirical POT events density vs estimated Poisson distribution")
+
+
+##################################################v
+
+rl_pp <- return.level(pot_pp, conf = 0.05, return.period= c(2,5,10,20,50,100))
 
 
 ```
@@ -166,7 +353,20 @@ Using a peaks-over-theshold approach:
 
 ```{r}
 
+#we need to assure the following trade-off: threshold too low – bias because of the model asymptotics being invalid; threshold too high – variance is large due to few data points.
+
+
+CI_delta_pot_pp <- ci(pot_pp, return.period = 10, verbose = T) 
+
+CI_delta_pot_pp
+
+#CI_prof_delta_pot_pp <- ci(pot_pp, method="proflik", xrange = c(900, 2100),   
+#                    return.period = 10, verbose = TRUE)
+
+
+#lets add the bounderies 
+
+
 
 
 ```
-
