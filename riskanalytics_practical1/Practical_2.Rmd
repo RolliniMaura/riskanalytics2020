@@ -220,7 +220,7 @@ showRM(mod1, alpha = 0.99, RM = "ES", method = "BFGS")
 
 
 ```
-
+source: https://rdrr.io/cran/QRM/man/POT.html
 
 > (f) Perform a binomial back-test over the last 300 days in the dataset for the models in d) and e), using a window size of 365 days. What are your conclusions?
 
