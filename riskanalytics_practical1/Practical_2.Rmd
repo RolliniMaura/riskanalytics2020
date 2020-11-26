@@ -19,23 +19,25 @@ Consider the observations recorded in sales 1.txt, which contain the daily sales
 
 library(dplyr)
 library(magrittr)
-library(TSstudio)
 sales <- read.delim(here::here("sales_1.txt"), header = FALSE)
 sales %<>% dplyr::rename(Sales = V1)
 
 ```
 
 
-```{r daily sales, fig.width=15}
-
+```{r daily sales, fig.width=20, fig.asp=0.2}
 
 sales_xts <- xts(sales$Sales, order.by = as.Date(1:1913))
-plot(sales_xts, type = "l", main = "Daily Sales")
-ts_plot(sales_xts, title = "Daily Sales")
-  
+plot(sales_xts, type = "l", main = "Daily Sales") 
+sales %>% dplyr::mutate(date = as.Date(1:1913)) %>% dplyr::filter(Sales == 0)
+
 ```
+It seems there is some seasonality element in the data, as the product is out of stock alomsto every year at the same time (around the end of November for almost every year), hence it could be avoided as it is repeated thorugh different years. 
 
 > (b) Assume Product 1 is a perishable good sold at a constant price of 10.– over the time period considered. Items of Product 1 are produced at cost 1.– and items which are unsold can be salvaged at 10% of cost, that is, at value s = 10 ct. Suppose that the sales of Product 1 are distributed according to F. Using the newsvendor model, give a formula for the critical fractile q = F−1(p).
+
+
+We have found a function that help us to autmotize the calculation of the newsvendor model. 
 
 ```{r NVM}
 # Import SCperf package
@@ -74,18 +76,47 @@ print(paste("Expected profit:", round(ExpP, 2)))
 ```
 source: https://medium.com/analytics-vidhya/newsvendor-inventory-problem-with-r-ccfc5a505f38
 
+Otherwise, we can calculate it by hand. 
+
+```{r manual newsvendor}
+
+#price
+p <- 10
+#cost of production
+c <- 1 
+#salvage cost
+s <- 0.1
+#cost of shortage 
+cs <- p-c
+#cost of overage 
+co <- c-s
+#critical fractile
+G <- cs / (cs + co)
+#quantile 
+z <- qnorm(G, 0,1)
+#mean
+mu <- mean(sales$Sales)
+#sd
+sd <- sd(sales$Sales)
+#Optimal quantity
+Q <- mu + z*sd
+
+```
+
+In both cases we get that the optimal quantity is `r Q` units of the product. 
+
 > (c) Explain how the critical fractile is related to the Value at Risk, and give an interpretation of the Expected Shortfall at the level p.
 
-The *critical fractile*, balances the cost of being understocked and the total costs of being either overstocked or understocked, and it gives the optimal quantity that should be produced to minimizes the costs. It's the quantile which optimize the probability that the demand is lower than the quantity Q that we have ordered.
+The *critical fractile*, balances the cost of being understocked and the total costs of being either overstocked or understocked, and it gives the optimal quantity that should be produced to minimizes the costs. It's the quantile which optimize the probability that the demand is lower than the quantity Q that has been ordered.
 
-The *Value at Risk* (VaR) denotes a quantile of the distribution, which is  the smallest number such that the random variable X that we are studying exceeds a value x with probability lower than 1 - alpha. In other words, with probability alpha, the variable X will be smaller than VaR. 
+The *Value at Risk* (VaR) denotes a quantile of the distribution, which is  the smallest number such that the random variable X that we are studying exceeds a value x with probability lower than $$1 - \alpha$$. In other words, with probability alpha, the variable X will be smaller than VaR. 
 
-Hence, the relation between these two parameters, is given by the fact that they are both quantiles that give the optimal value, if we consider the optimal value Q as the thershold after which we have the extreme values of the distribution of the demand, the critical fractile and the value at risk are basically denoting the same thing.
+Hence, the relation between these two parameters, is given by the fact that they are both quantiles that give a maximum value. If we consider the optimal value Q as the thershold after which we have the extreme values of the distribution of the demand, the critical fractile and the value at risk are describing the same value.
 <!-- Not sure -->
 
-The *Expected Shortfall* at level alpha is the average value of X, when it is higher than VaR. It is related to VaR by 
+The *Expected Shortfall* at level alpha is the average value of X when it is higher than VaR. It is related to VaR by 
 
-$$ ES = \frac{1}{1 - \alpha} \int_\alpha^{1}q_u (F_X)du $$
+$$ ES = \frac{1}{1 - \alpha} \int_\alpha^{1}q_u (F_X)du =  \frac{1}{1 - \alpha} \int_\alpha^{1} VaR_u(L)du  $$
 
 The Expected Shortfall at level p will then be the value of the sales if they are higher then the VaR, which in this case will correspond to the critical fractile. 
 <!-- Does it make any sense? Not sure at all -->
@@ -122,19 +153,41 @@ print(paste("Optimal order-up-to quantity:", ceiling(Q)))
 
 ```
 The critical fractile appears to be `r ceiling(Q)`.
+<!-- TO CHECK CAUSE GIVE DIFFERENT RESULTS  -->
+
+```{r poisson by hand}
+
+poisson <- fitdistr(sales$Sales, "Poisson")
+#price
+p <- 10
+#cost of production
+c <- 1 
+#salvage cost
+s <- 0.1
+#cost of shortage 
+cs <- p-c
+#cost of overage 
+co <- c-s
+#critical fractile
+G <- cs / (cs + co)
+#mean
+lambda <- poisson$estimate
+#sd
+sd <- poisson$sd
+#quantile 
+z <- qpois(G, lambda)
+#Optimal quantity
+Q <- lambda + z*sd
+
+```
+
+In the case of a poisson distribution, we find a critical fractile corresponding to `r Q`
 
 > (e) Suppose we model the sales as an extreme value distribution using a peaks-over-thresholds method. Give the Value at Risk at level p under this model.
 
 ```{r}
 
-library(POT)
-#this should help us choose the threshold but it does not become linear
-tcplot(sales$Sales, u.range = c(0.9, 0.995))
-#this should give the mean of the GDP
-POT::mrlplot(sales$Sales, u.range = c(1, quantile(sales$Sales, probs = 0.995)), col = c("green", "black", "green"), nt = 200)
-
-#this should be the fitting of the EVD
-fitgpd(sales$Sales, thresh = 1, shape = 0, est = "mle")
+library(extRemes)
 
 sales_xts <- xts(sales$Sales, order.by = as.Date(1:1913))
 extRemes::mrlplot(sales_xts[,1], main="Mean Residual Life Plot")
@@ -147,12 +200,26 @@ th <- 190
 pot_mle <- fevd(as.vector(sales_xts), method = "MLE", type="GP", threshold=th)
 plot(pot_mle)
 
-#Value at Risk 
-VaR(sales_xts, alpha = 0.05)
-
 ```
 source: https://www.gis-blog.com/eva-intro-3/
 
+```{r POT}
+
+library(QRM)
+hillPlot(sales$Sales, start = 50, end = 200, p = 0.99, option = "alpha")
+
+u <- quantile(sales$Sales, probs=0.9, names=FALSE)
+
+findthreshold(sales$Sales, 190)
+mod1 <- fit.GPD(sales$Sales, threshold = u)
+
+RiskMeasures(mod1, c(0.95, 0.99))
+plotTail(mod1)
+
+showRM(mod1, alpha = 0.99, RM = "ES", method = "BFGS")
+
+
+```
 
 
 > (f) Perform a binomial back-test over the last 300 days in the dataset for the models in d) and e), using a window size of 365 days. What are your conclusions?
