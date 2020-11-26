@@ -175,11 +175,11 @@ Using block maxima approach
 ```{r}
 
 # load required packages
-#library(extRemes)
-#library(Lmoments)
-#library(distillery)
-#library(xts)
-#library(evd)
+library(extRemes)
+library(Lmoments)
+library(distillery)
+library(xts)
+library(evd)
 
 #we should first extract the annual maximum temperature values. 
 #This idea is called the block maxima.
@@ -339,9 +339,9 @@ pot_pp <- fevd(as.vector(data_ts),  type="PP", threshold = threshold)
 
 
 #################### diagnostic plots--> ask why it not run????????
-
-#plot(pot_pp, type = "density", 
-     main = "Empirical POT events density vs estimated Poisson distribution")
+# 
+# plot(pot_pp, type = "density",
+#      main = "Empirical POT events density vs estimated Poisson distribution")
 
 
 ##################################################v
