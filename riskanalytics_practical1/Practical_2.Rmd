@@ -1,10 +1,21 @@
 ---
-title: "Practical_2"
+title: "Practical 2"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, include = FALSE}
+
+library(dplyr)
+library(xts)
+library(magrittr)
+library(MASS)
+library(extRemes)
+library(gPdtest)
+
 ```
 
 In this second practical, we will look at product sales data belonging to a large American retailer. 
@@ -13,12 +24,11 @@ As the person in charge of re-stocking products after they are sold, you would l
 
 Consider the observations recorded in sales 1.txt, which contain the daily sales volumes of Product 1 over n = 1913 days.
 
-> (a) Construct a figure which shows the daily sales volume, and study the values just before the product is out of stock. What do you notice? Explain why this is related to stock-out.
+# Exercise a
+> Construct a figure which shows the daily sales volume, and study the values just before the product is out of stock. What do you notice? Explain why this is related to stock-out.
 
-```{r loading data}
+```{r loading data, include = FALSE, warning=FALSE}
 
-library(dplyr)
-library(magrittr)
 sales <- read.delim(here::here("sales_1.txt"), header = FALSE)
 sales %<>% dplyr::rename(Sales = V1)
 
@@ -27,279 +37,252 @@ sales %<>% dplyr::rename(Sales = V1)
 
 ```{r daily sales, fig.width=20, fig.asp=0.2}
 
-sales_xts <- xts(sales$Sales, order.by = as.Date(1:1913))
-plot(sales_xts, type = "l", main = "Daily Sales") 
+plot(sales$Sales, type = "l", main = "Daily Sales")
+outofstock <- which(diff(sales$Sales) == -sales$Sales & sales$Sales !=0)
+abline(v = outofstock, col = "red")
+
 sales %>% dplyr::mutate(date = as.Date(1:1913)) %>% dplyr::filter(Sales == 0)
 
 ```
 It seems there is some seasonality element in the data, as the product is out of stock alomsto every year at the same time (around the end of November for almost every year), hence it could be avoided as it is repeated thorugh different years. 
 
-> (b) Assume Product 1 is a perishable good sold at a constant price of 10.– over the time period considered. Items of Product 1 are produced at cost 1.– and items which are unsold can be salvaged at 10% of cost, that is, at value s = 10 ct. Suppose that the sales of Product 1 are distributed according to F. Using the newsvendor model, give a formula for the critical fractile q = F−1(p).
+# Exercise b
 
-
-We have found a function that help us to autmotize the calculation of the newsvendor model. 
-
-```{r NVM}
-# Import SCperf package
-library(SCperf)
-
-# Set mean demand
-D <- mean(sales$Sales)
-
-# Set standard deviation of the demand (in units)
-sd <- sd(sales$Sales)
-
-# Set selling price
-p <- as.numeric(10)
-
-# Set unit cost
-c <- as.numeric(1)
-
-# Set salvage value
-s <- as.numeric(0.1)
-
-# Get Newsboy Model Results 
-Newsboy <- Newsboy(D, sd, p, c, s)
-
-Q <- as.numeric(Newsboy[1])
-print(paste("Optimal order-up-to quantity:", ceiling(Q)))
-
-SS <- as.numeric(Newsboy[2])
-print(paste("Safety stock:", ceiling(SS)))
-
-ExpC <- as.numeric(Newsboy[3])
-print(paste("Expected cost:", round(ExpC, 2)))
-
-ExpP <- as.numeric(Newsboy[4])
-print(paste("Expected profit:", round(ExpP, 2)))
-
-```
-source: https://medium.com/analytics-vidhya/newsvendor-inventory-problem-with-r-ccfc5a505f38
+> Assume Product 1 is a perishable good sold at a constant price of 10.– over the time period considered. Items of Product 1 are produced at cost 1.– and items which are unsold can be salvaged at 10% of cost, that is, at value s = 10 ct. Suppose that the sales of Product 1 are distributed according to F. Using the newsvendor model, give a formula for the critical fractile q = F−1(p).
 
 Otherwise, we can calculate it by hand. 
 
 ```{r manual newsvendor}
 
 #price
-p <- 10
+pr <- 10
 #cost of production
 c <- 1 
 #salvage cost
 s <- 0.1
 #cost of shortage 
-cs <- p-c
+cs <- pr-c
 #cost of overage 
 co <- c-s
 #critical fractile
-G <- cs / (cs + co)
-#quantile 
-z <- qnorm(G, 0,1)
-#mean
-mu <- mean(sales$Sales)
-#sd
-sd <- sd(sales$Sales)
-#Optimal quantity
-Q <- mu + z*sd
+p <- cs / (cs + co)
 
 ```
 
-In both cases we get that the optimal quantity is `r Q` units of the product. 
+In this case, the formula to calculate the critical fractile is the following:
 
-> (c) Explain how the critical fractile is related to the Value at Risk, and give an interpretation of the Expected Shortfall at the level p.
+$$ q = F^-1 (p)$$ 
 
-The *critical fractile*, balances the cost of being understocked and the total costs of being either overstocked or understocked, and it gives the optimal quantity that should be produced to minimizes the costs. It's the quantile which optimize the probability that the demand is lower than the quantity Q that has been ordered.
+is equal to 
 
-The *Value at Risk* (VaR) denotes a quantile of the distribution, which is  the smallest number such that the random variable X that we are studying exceeds a value x with probability lower than $$1 - \alpha$$. In other words, with probability alpha, the variable X will be smaller than VaR. 
+$$ q = F^{-1} (\frac {cs}{cs + co}) $$ 
 
-Hence, the relation between these two parameters, is given by the fact that they are both quantiles that give a maximum value. If we consider the optimal value Q as the thershold after which we have the extreme values of the distribution of the demand, the critical fractile and the value at risk are describing the same value.
-<!-- Not sure -->
+The cs as the cost of shortage, which corresponds to the cost per unit it would incur if there is still demand but we are out of stock, hence a missed sale which correspond to the price minus the costs (p - c). 
+On the other hand co is the cost of overage, which is the cost per unit of having too many products compared to the demand, hence a product produced and unsold which is the cost of production minus the salvage cost (c - s). 
 
-The *Expected Shortfall* at level alpha is the average value of X when it is higher than VaR. It is related to VaR by 
+#Exercise c
 
-$$ ES = \frac{1}{1 - \alpha} \int_\alpha^{1}q_u (F_X)du =  \frac{1}{1 - \alpha} \int_\alpha^{1} VaR_u(L)du  $$
+> Explain how the critical fractile is related to the Value at Risk, and give an interpretation of the Expected Shortfall at the level p.
 
-The Expected Shortfall at level p will then be the value of the sales if they are higher then the VaR, which in this case will correspond to the critical fractile. 
-<!-- Does it make any sense? Not sure at all -->
+The **critical fractile**, balances the cost of being understocked and the total costs of being either overstocked or understocked, and it gives the optimal quantity that should be produced to minimizes the costs. It's the quantile which optimize the probability that the demand is lower than the quantity Q that has been ordered.
 
-> (d) Fit a Poisson model to the sales volume data by assuming that Yi ∼ Poisson(μ) and using
-maximum likelihood estimation for μ. (Hint: you may use MASS::fitdistr). According to this model, what is the estimated critical fractile?
+The **Value at Risk** (VaR) denotes a quantile of the distribution, which is  the smallest number such that the random variable X that we are studying exceeds a value x with probability lower than 1 - alpha. In other words, with probability alpha, the variable X will be smaller than VaR. 
+Hence, we are looking at the heavy tails of the distribution of the variable. 
 
+The interest is when the newsvendor model gives a high quantile to look at (e.g. above 0.9, like in our case in the previous question). What we want to avoid is to go beyond the critical fractile, because in that case we will not choose the optimal quantity, and we will increase the costs and hence decrease the profit, even though this will happen with a low probability (of 1 - q).
+This is linkable to the Value at Risk as it is also describing an extreme situation in which the variable takes a value that is higher than a certain threshold, and, as we are in the risk analysis field we are studying the losses on investments, we want to avoid these extreme cases, as they mean a high loss. 
 
-```{r poisson}
+The **Expected Shortfall** at level alpha is the average value of X when it is higher than VaR. It is related to VaR by 
 
-library(MASS)
-poisson <- fitdistr(sales$Sales, "Poisson")
+$$ ES_\alpha (x) = \frac{1}{1 - \alpha} \int_\alpha^{1}q_u (F_X)du =  \frac{1}{1 - \alpha} \int_\alpha^{1} VaR_\beta(L)d\beta  $$
 
-# Set mean demand
-D <- poisson$estimate
+The Expected Shortfall at level p will then be the value of the sales if they are higher then the VaR, so for the level p, the ES will be the average value of the sales that are higher than the level p that is calculated as the quantile of the critical fractile q.
 
-# Set standard deviation of the demand (in units)
-sd <- poisson$sd
+# Exercise d
 
-# Set selling price
-p <- as.numeric(10)
-
-# Set unit cost
-c <- as.numeric(1)
-
-# Set salvage value
-s <- as.numeric(0.1)
-
-# Get Newsboy Model Results 
-Newsboy <- Newsboy(D, sd, p, c, s)
-
-Q <- as.numeric(Newsboy[1])
-print(paste("Optimal order-up-to quantity:", ceiling(Q)))
-
-```
-The critical fractile appears to be `r ceiling(Q)`.
-<!-- TO CHECK CAUSE GIVE DIFFERENT RESULTS  -->
+> Fit a Poisson model to the sales volume data by assuming that Yi ∼ Poisson(μ) and using maximum likelihood estimation for μ. (Hint: you may use MASS::fitdistr). According to this model, what is the estimated critical fractile?
 
 ```{r poisson by hand}
 
 poisson <- fitdistr(sales$Sales, "Poisson")
-#price
-p <- 10
-#cost of production
-c <- 1 
-#salvage cost
-s <- 0.1
-#cost of shortage 
-cs <- p-c
-#cost of overage 
-co <- c-s
-#critical fractile
-G <- cs / (cs + co)
-#mean
+#lambda of the poisson distribution
 lambda <- poisson$estimate
-#sd
-sd <- poisson$sd
 #quantile 
-z <- qpois(G, lambda)
-#Optimal quantity
-Q <- lambda + z*sd
+q <- qpois(p, lambda)
 
 ```
 
-In the case of a poisson distribution, we find a critical fractile corresponding to `r Q`
+In the case of a poisson distribution, we find a critical fractile by using the following formula: 
 
-> (e) Suppose we model the sales as an extreme value distribution using a peaks-over-thresholds method. Give the Value at Risk at level p under this model.
+$$ q = F^{-1} (p) = \sum_{i = 0}^p \frac {e{-\lambda}\lambda^i}{i!}$$
 
-```{r}
+And it corresponds to `r q`. 
 
-library(extRemes)
+#Exercise e
 
-sales_xts <- xts(sales$Sales, order.by = as.Date(1:1913))
-extRemes::mrlplot(sales_xts[,1], main="Mean Residual Life Plot")
-extRemes::threshrange.plot(sales_xts, r = c(180, 200), nint = 20)
+> Suppose we model the sales as an extreme value distribution using a peaks-over-thresholds method. Give the Value at Risk at level p under this model.
 
+```{r EVD, fig.width=12}
 
-#let's fix the threshold at 190 as after it the distribution seems to be flat 
-th <- 190
+#Mean Residual Life Plot
+extRemes::mrlplot(sales$Sales, main="Mean Residual Life Plot")
+#Finding and appropriate threshold 
+extRemes::threshrange.plot(sales$Sales, r = c(70, 150), nint = 80)
 
-pot_mle <- fevd(as.vector(sales_xts), method = "MLE", type="GP", threshold=th)
-plot(pot_mle)
+#let's fix the threshold at 120 as after it the distribution seems to be flat in the second graph and there is the elbow in the first one
+u <- 120
+
+plot(sales$Sales, type = "l", main = "Daily Sales")
+abline(h = u, col = "red")
+
+#Weights for the observations above the threshold chosen
+W <-  sales %>% dplyr::filter(Sales > u) %>% dplyr::mutate(W = Sales - u) %>% dplyr::select(W)
+
+#fitting a GPD, method amle as we want the shape parameter positive
+gpd <- gPdtest::gpd.fit(W$W, method = "amle")
+
+#extracting the parameters 
+#shape
+beta <- gpd[1,]
+#scale
+xi <- gpd[2,]
+
+#setting the alpha for the VaR to the level we have calculated 
+alpha <- p
+
+#calculating Fbar with the approximation 
+Fbar <- nrow(W) / nrow(sales)
+
+#calculating the values at risk 
+VaR <- (u + (beta/xi) * ( ( ( (1 - alpha) / (Fbar) ) ^ (-xi) ) - 1) )
 
 ```
-source: https://www.gis-blog.com/eva-intro-3/
 
-```{r POT}
+We use the first two graphs to determine the therhsold that we want to use. What we can see in the first one is that between the value 100 and 150 the curve seems to flatten, which is confirmed by the second graphs, as the parameters are becoming constant already from before 100. 
 
-library(QRM)
-hillPlot(sales$Sales, start = 50, end = 200, p = 0.99, option = "alpha")
+We decide to be safe and to choose a threshold of 120, as we believe that after that the Mean Residual Life Plot shows a flatter line. 
 
-u <- quantile(sales$Sales, probs=0.9, names=FALSE)
+We move on by calculating the weights of the observations that are above this threshold (that are the points in the graph above the red line). 
 
-findthreshold(sales$Sales, 190)
-mod1 <- fit.GPD(sales$Sales, threshold = u)
+Then, using these observations we fit a GPD and we estimate the parameters, that we will insert in the formula to calculate the VaR.
 
-RiskMeasures(mod1, c(0.95, 0.99))
-plotTail(mod1)
+The resulting value is `r VaR`. 
 
-showRM(mod1, alpha = 0.99, RM = "ES", method = "BFGS")
+# Exercise f
 
-
-```
-source: https://rdrr.io/cran/QRM/man/POT.html
-
-> (f) Perform a binomial back-test over the last 300 days in the dataset for the models in d) and e), using a window size of 365 days. What are your conclusions?
+> Perform a binomial back-test over the last 300 days in the dataset for the models in d) and e), using a window size of 365 days. What are your conclusions?
 
 To backtest:
-- Split the data in two parts: one group will be the historical data used to determine the VaR, the other group will be the one on which we test the VaR 
-- At each time we will use a window of size 365 days to estimate the VaR at the new point in time 
-- We compare the estimated values with the real ones 
-- If the real value is larger the VaR there is a violation 
-- Perform a Bernoulli test to see if the number of violation is equal to the expected number 
+1. Split the data and create a test set including the last 300 observations of the dataset
+2. Calculate the VaR for each one of the observations inside the test set using a window of 365 days 
+3. Compare the estimated VaR to the real values and see if there is any violation, meaning that the real value is higher than the VaR for a given day
+4. Consider that the violations follow a binomial distribution(300, 1 - p), test the hypothesis that the observed proportion of violations over the test set is different from the expected proportion given by the binomial distribution with a binomial test
 
+## 1. Test set
 
 We will split the data in two subgroups, the first one being the training set which we will use to estimate the VaR will comprehend the observations up to the last 300 days of the data, while the last 300 observations will be the test set to which we will compare the VaR we will find. 
 
-```{r split data}
+```{r test set}
 
-salesTrain_xts <- sales_xts[(1:(nrow(sales_xts)-300)),]
-salesTest_xts <- sales_xts[((nrow(sales_xts)-300):(nrow(sales_xts)))]
-
-```
-
-```{r VaR estimation}
+salesTest <- sales$Sales[(nrow(sales)-299):(nrow(sales))]
 
 ```
 
-```{r likelihood function}
+## 2. Calculate VaR 
 
-#likelihood function 
-loglik_gev <- function(x, mu, sigma, xi) {
-n <- length(x)
-z <- (x - mu)/sigma
-if (any(1 + xi * z <= 0)) { # enforce support
-return(-1e9) }
-if (abs(xi) < 1e-9) { # Gumbel case
-out <- -n*log(sigma) - sum(exp(-z)) - sum(z)
-} else { # Frechet or Weibull
-out <- -n*log(sigma) - (1/xi+1)*sum(log(1+xi*z)) - sum((1+xi*z)^(-1/xi))
+Then we will calculate the VaR for the test set using a moving window of 365 days. 
+
+In order to do so, we start by creating a function to calculate the VaR for a given window, which works in the following way:
+- same thershold we decided before (hence 120)
+- window of 365 days before the observations that we want to estimate
+- calculate the weights for the observations in this window which are above the threshold by taking the differences between the sales and the thershold
+- fit a GPD on the weights and estimate the parameters for the shape and the scale
+- same alpha as before, which is the p value we calculated
+- estimation of Fbar ny dividing the number of observations above the threshold in the window and the total number of observation in the window 
+- put all the estimators in the formula to calculate the value at risk
+
+```{r VaR function}
+
+VaRest <- function(df){
+  
+  #threshold
+  u <- 120
+  
+  #Weights for the observations above the threshold chosen
+  W <-  df %>% dplyr::filter(Sales > u) %>% dplyr::mutate(W = Sales - u) %>% dplyr::select(W)
+  
+  #fitting a GPD, method amle as we want the shape parameter positive
+  gpd <- gPdtest::gpd.fit(W$W, method = "amle")
+  
+  #extracting the parameters 
+  #shape
+  beta <- gpd[1,]
+  #scale
+  xi <- gpd[2,]
+  
+  #setting the alpha for the VaR to the level we have calculated
+  alpha <- p
+  
+  #calculating Fbar with the approximation 
+  Fbar <- nrow(W) / 300
+  
+  #calculating the values at risk 
+  (u + (beta/xi) * ( ( ( (1 - alpha) / (Fbar) ) ^ (-xi) ) - 1) )
+  
+  }
+
+```
+
+Then we move on with the calculation of the value at risk for each observation in the test set. 
+In order to do it, we will first create a vector to store the values, which will have a length of 300 as the number of observations in the test set. 
+Then, we create a loop for the 300 observations, we want to create the window considered to calculate the value at risk by including the 365 observations that precedes the one for which we want to estimate the value at risk.
+Eventually, we get the different values at risk for each one of the observations. 
+
+```{r}
+#create a vector to store the values 
+VAR <- as.numeric(1:300)
+
+for(i in 1:300){
+  #select window 
+  wind <- sales %>% dplyr::slice((1913-i):(1913-i-365))
+  #calculate VaR
+  VAR[i] <- VaRest(wind)
 }
-     return(out)
-   }
+
+VAR
 
 ```
 
+We can see that there are quite a lot of repetitions in the estimation of the values at risk, this is given by the fact that the the observations contained in the windows of adjacent dates are all the same but one, as we discard the oldest one to replace it with the real value of the observation of the day before the one we are considering. Hence, if none of these two values is describing a violation (meaning that it is higher than the threshold that we have chosen), the computation of the value at risk won't be affected, as all the paramters that we use to estimate the VaR will remain unchanged: the weights will be the same (since we consider only the values that are above the threshold) and so will be the GPD and its parameters' estimations, the fbar is also the same as Nu stays the same and the alpha is fixed.
 
-```{r optim function}
+## 3. Violations 
 
-starting_values <- c(mean(salesTrain_xts[1:100]), sd(salesTrain_xts[1:100]), 0)
-fit_gev <- optim(
-starting_values,
-fn = function(p) loglik_gev(data$Average.Wait.Seconds, p[1], p[2], p[3]),
-control = list(fnscale = -1), 
-method = "L-BFGS-B",
-hessian = TRUE
-)
-
-```
-
-```{r optimum parameters estimated}
-
-#this should be mu, sigma and csi 
-fit_gev$par
-
-mu <- fit_gev$par[1]
-sigma <- fit_gev$par[2]
-xi <- fit_gev$par[3]
-
-PerformanceAnalytics::VaR(R = salesTrain_xts[1:100], method = "historical", p = 0.95, mu = mu, sigma = sigma)
-
-```
+Now, we compare the VaR we estimated to the real values, to see how many violations there are. The should be following a bernoulli distribution with n = 300 and p = 1 - alpha.
 
 ```{r comparison}
 
-BacktestVaR(data, VaR, alpha, Lags = 4)
+#number of observed violations
+violations <- sum(ifelse(VAR > salesTest, 0, 1))
+#number of theoretical violations, given by the mean of the bernoully distribution
+ev <- 300*(1 - p)
 
 ```
 
-```{r bernoulli test}
+We find out that there are `r violations` violations. 
 
+We can compare this value to the theoretical one that we expect to get, which is `r ev`.
 
+## Binomial test
+
+We can test whether they are statistically significantly different by using a binomial test, which has the following characteristics: 
+
+$$H_0: \pi = \pi_0$$
+In our case the theoretical π will equal to `r 1 - p`, while the probability found in the observations is `r violations/300`. We want to test if waht it observed is different from the expected value. 
+
+```{r binomial test}
+
+(bintest <- binom.test(45, 300, p = 1-p))
 
 ```
 
-
+We can see that the p-value is quite low (`r bintest$p.value`), more specifically is lower than the significance level alpha = 5%, hence we cannot reject the null hypothesis of the two proportions being the same and hence that the distribution of the violations in the windows considered follows a binomial(300, 1-p).
