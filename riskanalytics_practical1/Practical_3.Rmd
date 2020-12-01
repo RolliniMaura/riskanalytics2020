@@ -1,0 +1,46 @@
+---
+title: "Practical 3"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+sales10 <- read.csv(here::here("sales_10.csv"))
+sales10adj <- read.csv(here::here("sales_10_adjusted.csv"))
+```
+
+In this third practical, we expand the retail sales dataset of Practical 2 to include multiple products. 
+Data for Product 1 (from Practical 2) and an additional 9 products are given in two forms: sales 10.csv and sales 10 adjusted.csv, with the same format. 
+As the name indicates, sales volumes in the latter file have been adjusted for trend and seasonality (removing growth and cyclical patterns).
+
+(a) Explain the challenges involved when analysing the risk of stock-out across several products. What is the danger of considering each series independently?
+
+
+
+(b) Propose one graphical and one numerical method of detecting dependence of extreme values of the demand across several products. Apply your chosen methods to the adjusted sales data and identify groups of related products (if any exist).
+
+
+
+(c) In view of your answer to (f), would you apply a Gaussian copula model to these data?
+
+
+
+(d) (Hard) Fit a multivariate model to the adjusted sales data and estimate the 95% Demand at Risk for the sum:
+$$S = X^{(1)} + X^{(2)} + ... + X^{(10)}$$
+You can do so with the following steps: 
+
+i. Transofrm the sales for each product to a uniform scale, that is, compute 
+$$F_i(X^{(i)})$$
+for each X in 1, ..., n being each of the product sales and F being the esimated Extreme Value distributions.
+
+
+ii. Fit a multivariate copula of your choice using the `copula::fitCopula` function.
+
+
+iii. Simulate from your fitted copula and transform the values back to their original scales (i.e. undo the transformation in i.)
+
+
+iv. Compute the simulated values of S and their 95% Value at Risk.
+
+
