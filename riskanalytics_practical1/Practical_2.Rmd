@@ -35,7 +35,7 @@ sales %<>% dplyr::rename(Sales = V1)
 ```
 
 
-```{r daily sales, fig.width=20, fig.asp=0.2}
+```{r daily sales, fig.width=20, fig.height=8}
 
 plot(sales$Sales, type = "l", main = "Daily Sales")
 outofstock <- which(diff(sales$Sales) == -sales$Sales & sales$Sales !=0)
@@ -122,15 +122,15 @@ And it corresponds to `r q`.
 
 > Suppose we model the sales as an extreme value distribution using a peaks-over-thresholds method. Give the Value at Risk at level p under this model.
 
-```{r EVD, fig.width=12}
+```{r EVD, fig.width=12, fig.height=10}
 
 #Mean Residual Life Plot
 extRemes::mrlplot(sales$Sales, main="Mean Residual Life Plot")
 #Finding and appropriate threshold 
-extRemes::threshrange.plot(sales$Sales, r = c(70, 150), nint = 80)
+extRemes::threshrange.plot(sales$Sales, r = c(100, 200), nint = 120)
 
-#let's fix the threshold at 120 as after it the distribution seems to be flat in the second graph and there is the elbow in the first one
-u <- 120
+#let's fix the threshold at 140 as after it the distribution seems to be flat in the second graph and there is the elbow in the first one
+u <- 190
 
 plot(sales$Sales, type = "l", main = "Daily Sales")
 abline(h = u, col = "red")
@@ -158,9 +158,7 @@ VaR <- (u + (beta/xi) * ( ( ( (1 - alpha) / (Fbar) ) ^ (-xi) ) - 1) )
 
 ```
 
-We use the first two graphs to determine the therhsold that we want to use. What we can see in the first one is that between the value 100 and 150 the curve seems to flatten, which is confirmed by the second graphs, as the parameters are becoming constant already from before 100. 
-
-We decide to be safe and to choose a threshold of 120, as we believe that after that the Mean Residual Life Plot shows a flatter line. 
+We wanted to use the first two graphs to determine the therhsold that we want to use. What we can see in the first one is that between the value 100 and 150 the curve seems to flatten, which is confirmed by the second graphs, as the parameters are becoming constant already from before 100. However, choosing a threshold between these two values would give too many observations above it, in our opinion, hence we decide to move it a little bit further up. We decided to be safe and to choose a threshold of 190, so that we have a quantile that is around the 80%. 
 
 We move on by calculating the weights of the observations that are above this threshold (that are the points in the graph above the red line). 
 
@@ -178,35 +176,132 @@ To backtest:
 3. Compare the estimated VaR to the real values and see if there is any violation, meaning that the real value is higher than the VaR for a given day
 4. Consider that the violations follow a binomial distribution(300, 1 - p), test the hypothesis that the observed proportion of violations over the test set is different from the expected proportion given by the binomial distribution with a binomial test
 
-## 1. Test set
+## Poisson
+
+### 1. Test set 
 
 We will split the data in two subgroups, the first one being the training set which we will use to estimate the VaR will comprehend the observations up to the last 300 days of the data, while the last 300 observations will be the test set to which we will compare the VaR we will find. 
 
-```{r test set}
+```{r test set poisson}
 
 salesTest <- sales$Sales[(nrow(sales)-299):(nrow(sales))]
 
 ```
 
-## 2. Calculate VaR 
+### 2. Calculate VaR 
+
+Then, we calculate the Value at Risk by fitting a poisson distribution on the window preceeding the observation in which we are interested. 
+
+We start by creating a function that works in the following way:
+1. use the same probability as before (hence 0.91)
+2. fit the poisson on the window 
+3. determines the lambda of the poisson distribution
+4. caclulate the VaR by taking the 0.91 quantile of the poisson we fit
+
+```{r poisson VaR}
+
+poissVaR <- function(df){ 
+  
+  #definition of the probability 
+  p <- 0.91
+  
+  #fitting the poisson
+  poisson <- fitdistr(df$Sales, "Poisson")
+  
+  #lambda of the poisson distribution
+  lambda <- poisson$estimate
+  
+  #quantile, which corresponds to the VaR
+  VaRpoiss <- qpois(p, lambda)
+}
+
+```
+
+Then, we can create a loop to get the VaR for the observations inside the test set.
+
+```{r VaR calculation poisson}
+
+#create a vector to store the values 
+poissVAR <- as.numeric(1:300)
+
+for(i in 1:300){
+  #select window 
+  wind <- sales %>% dplyr::slice((1913-i):(1913-i-365))
+  #calculate VaR
+  poissVAR[i] <- poissVaR(wind)
+}
+
+poissVAR
+
+```
+
+As we can see they take they almost take the same values, this is due to the fact that the window is quite large (365), hence the change from one window to the subsequent one will not be very big, as we just drop the furthest away observation to gain the most recent one that is the day before the one we are considering. Hence, the fitting of the poisson distribution will be almost the same, as it will be the lambda and the quantile. 
+
+### 3. Violations 
+
+Now, we compare the VaR we estimated to the real values, to see how many violations there are. The should be following a bernoulli distribution with n = 300 and p = 1 - alpha.
+
+```{r comparison poisson}
+
+#number of observed violations
+poiss.violations <- sum(ifelse(poissVAR > salesTest, 0, 1))
+#number of theoretical violations, given by the mean of the bernoully distribution
+ev <- 300*(1 - p)
+
+```
+
+We find out that there are `r poiss.violations` violations. 
+
+We can compare this value to the theoretical one that we expect to get, which is `r ev`.
+
+#### 4. Binomial test
+
+### Binomial test
+
+We can test whether they are statistically significantly different by using a binomial test, which has the following characteristics: 
+
+$$H_0: \pi = \pi_0$$
+In our case the theoretical π will equal to `r 1 - p`, while the probability found in the observations is `r poiss.violations/300`. We want to test if waht it observed is different from the expected value. 
+
+```{r binomial test poisson}
+
+(bintest.poiss <- binom.test(poiss.violations, 300, p = 1-p))
+
+```
+
+We can see that for the poisson, the p-value is really low `r bintest.poiss$p.value`. This means that we will reject the null hypothesis and hence that the distribution of the violations is not following a bernoulli distributions. There has been an underestimation of the quantile we used to calculate the VaR and the values at risk, as we had quite a lot violations compared to the theoretical one. We believe that by increasing the probability in the poisson distribution we would get to a more optimal result. 
+
+##Peaks Over Threshold
+
+### 1. Test set
+
+We will split the data in two subgroups, the first one being the training set which we will use to estimate the VaR will comprehend the observations up to the last 300 days of the data, while the last 300 observations will be the test set to which we will compare the VaR we will find. 
+
+```{r test set POT}
+
+salesTest <- sales$Sales[(nrow(sales)-299):(nrow(sales))]
+
+```
+
+### 2. Calculate VaR 
 
 Then we will calculate the VaR for the test set using a moving window of 365 days. 
 
 In order to do so, we start by creating a function to calculate the VaR for a given window, which works in the following way:
-- same thershold we decided before (hence 120)
-- window of 365 days before the observations that we want to estimate
-- calculate the weights for the observations in this window which are above the threshold by taking the differences between the sales and the thershold
-- fit a GPD on the weights and estimate the parameters for the shape and the scale
-- same alpha as before, which is the p value we calculated
-- estimation of Fbar ny dividing the number of observations above the threshold in the window and the total number of observation in the window 
-- put all the estimators in the formula to calculate the value at risk
+- here we use the 73% quantile to determine the threshold as a higher one would mean too few observations above the line to be able to fit a gpd and it would create too few violations, while a lower one would create the opposite problems,
+- window of 365 days before the observations that we want to estimate,
+- calculate the weights for the observations in this window which are above the threshold by taking the differences between the sales and the thershold,
+- fit a GPD on the weights and estimate the parameters for the shape and the scale,
+- same alpha as before, which is the p value we calculated,
+- estimation of Fbar ny dividing the number of observations above the threshold in the window and the total number of observation in the window,
+- put all the estimators in the formula to calculate the value at risk.
 
-```{r VaR function}
+```{r VaR function POT}
 
 VaRest <- function(df){
   
   #threshold
-  u <- 120
+  u <- 0.73 * max(df$Sales)
   
   #Weights for the observations above the threshold chosen
   W <-  df %>% dplyr::filter(Sales > u) %>% dplyr::mutate(W = Sales - u) %>% dplyr::select(W)
@@ -238,7 +333,8 @@ In order to do it, we will first create a vector to store the values, which will
 Then, we create a loop for the 300 observations, we want to create the window considered to calculate the value at risk by including the 365 observations that precedes the one for which we want to estimate the value at risk.
 Eventually, we get the different values at risk for each one of the observations. 
 
-```{r}
+```{r VaR calculation POT}
+
 #create a vector to store the values 
 VAR <- as.numeric(1:300)
 
@@ -255,11 +351,11 @@ VAR
 
 We can see that there are quite a lot of repetitions in the estimation of the values at risk, this is given by the fact that the the observations contained in the windows of adjacent dates are all the same but one, as we discard the oldest one to replace it with the real value of the observation of the day before the one we are considering. Hence, if none of these two values is describing a violation (meaning that it is higher than the threshold that we have chosen), the computation of the value at risk won't be affected, as all the paramters that we use to estimate the VaR will remain unchanged: the weights will be the same (since we consider only the values that are above the threshold) and so will be the GPD and its parameters' estimations, the fbar is also the same as Nu stays the same and the alpha is fixed.
 
-## 3. Violations 
+### 3. Violations 
 
 Now, we compare the VaR we estimated to the real values, to see how many violations there are. The should be following a bernoulli distribution with n = 300 and p = 1 - alpha.
 
-```{r comparison}
+```{r comparison POT}
 
 #number of observed violations
 violations <- sum(ifelse(VAR > salesTest, 0, 1))
@@ -272,17 +368,17 @@ We find out that there are `r violations` violations.
 
 We can compare this value to the theoretical one that we expect to get, which is `r ev`.
 
-## Binomial test
+### Binomial test
 
 We can test whether they are statistically significantly different by using a binomial test, which has the following characteristics: 
 
 $$H_0: \pi = \pi_0$$
 In our case the theoretical π will equal to `r 1 - p`, while the probability found in the observations is `r violations/300`. We want to test if waht it observed is different from the expected value. 
 
-```{r binomial test}
+```{r binomial test POT}
 
-(bintest <- binom.test(45, 300, p = 1-p))
+(bintest <- binom.test(violations, 300, p = 1-p))
 
 ```
 
-We can see that the p-value is quite low (`r bintest$p.value`), more specifically is lower than the significance level alpha = 5%, hence we cannot reject the null hypothesis of the two proportions being the same and hence that the distribution of the violations in the windows considered follows a binomial(300, 1-p).
+We can see that the p-value is quite high (`r bintest$p.value`), more specifically is higher than the significance level alpha = 5%, hence we cannot reject the null hypothesis of the two proportions being the same and hence that the distribution of the violations in the windows considered follows a binomial(300, 1-p).
