@@ -8,7 +8,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-In this practical, we will analyse data pertaining to customer waiting times in a governmental office. The data provided to us is the $waiting.csv$ file are daily average waiting times from *January 3, 2017* to *October 26, 2018.*
+In this practical, we will analyse data pertaining to customer waiting times in a governmental office. The data provided to us is the $waiting.csv$ file, which gives daily average waiting times from *January 3, 2017* to *October 26, 2018.*
 
 Our goal is to model and monitor the time customers spend waiting, and to take action if the service quality deteriorates too badly, i.e. if waiting times are unacceptably high.
 
@@ -111,11 +111,11 @@ rm(summary5_weekday, p )
 ## {.toc-ignore}
 
 
-$Conclusion$ : our main observations regarding the charts below are the following:
+*Conclusion* : our main observations regarding the charts below are the following:
 
-- The daily plot chart below show a continue oscillation of the data during the 447 observations.
+- The daily plot chart below shows a continue oscillation of the data during the 447 observations.
 - There are high deviation values regarding the mean in each day.
-- The average per weekday are similar within them, nevertheless, the highest average is made in friday.
+- The average per weekday are similar within them, nevertheless, the highest average is made on friday.
 - The highest waiting time is on wednesday.
 
 
@@ -209,12 +209,11 @@ rm(upper_control_limit, meanData, nrow, qnorm, sdData, probability_exceed_UCL)
 
 ## {.toc-ignore}
 
-$Conclusion$: our main observations regarding the analisis are:
+*Conclusion*: our main observations regarding the analysis are the following:
 
-- The upper bound with a normal approximation is very close the mean of the waintin time (Upper bound= 460, Mean= 441).
-- The probability that the upper bound won't be exceeded during the 1-year return period is quite high, because the upper bound do not considere the extreme values and it tends to concentrate in the middle due to the normal approximation.
-- In the QQ-plot we can confirm that the data is not normal is right-skewed (or positively skewed) due to the desviation of the straight line in both extrems. 
-
+- The upper bound with a normal approximation is very close the mean of the waiting time (Upper bound= 460, Mean= 441).
+- The probability that the upper bound will not be exceeded during the 1-year return period is quite high, because the upper bound do not consider the extreme values and it tends to concentrate in the middle due to the normal approximation.
+- Thanks to the QQ-plot we can confirm that the data is not normal, as it is right-skewed (or positively skewed), in fact we can see deviations from the straight line in both extrems. 
 
 ## Exercise C
 
@@ -224,11 +223,11 @@ The aim of this analysis is to focus on negative effects (long wait times). Expl
 
 We have proposed the following steps:
 
-- First, we determine the block size and the maximum valor for each of them. For this exercise we choose weekly blocks.  
+- First, we determine the block size and the maximum value for each of them. For this exercise we choose weekly blocks.  
 
 `Block Maxima:` $$M_{i}=max\{X_{(i−1)n+1},\cdots,X_{in}\},i=1,⋯,m$$
 
-- Then, we fit the a Generalized extrem Value, assuming that it follows \(GEV(\mu_{n},\sigma_{n},\xi)\) distribution and we will focus on maximize the log-likelihood.  
+- Then, we fit the a Generalized Extreme Value, assuming that it follows a \(GEV(\mu_{n},\sigma_{n},\xi)\) distribution and we will focus on maximizing the log-likelihood.  
 
 - In this step, we decide to test if the parameters correspond to the Gumbel distribution. 
 
@@ -369,20 +368,19 @@ return_level_gev<- data.frame(return_period, return_level_gev)
 ### {.toc-ignore}
 
 
-$Conclusion$ : our main observations are the following:
+*Conclusions*: our main observations are the following:
 
-- Even if the shape value is negative it is small enough to fit a Gumbel distribution.
-
+- Even if the shape value is negative, it is small enough to fit a Gumbel distribution.
 
 
 ### Peaks-over-theshold approach {.tabset .tabset-fade .tabset-pills}
 
-We have proposed the following steps:
+We propose to use following steps:
 
-- First, we need stablish a larga enough treshold \(u\), where 
-$$\mathbb{P}\left(X_{i}-u>y|X_{i}>u\right)$$, for being able to do we apply a mean residual plot a we select the threshold when the plot start looks linear.
+- First, we need stablish a large enough threshold \(u\), with 
+$$\mathbb{P}\left(X_{i}-u>y|X_{i}>u\right)$$. To be able to do it, we apply a mean residual plot and we select the threshold when the plot start to look linear.
 
-- Then, we fit the data to a Generaliaze Pareto distribution.  
+- Then, we fit a Generaliaze Pareto distribution.  
 
 - Finally, we asses the model and compute m-year return levels.
 
@@ -447,7 +445,7 @@ compare_return_level<- data.frame(return_level_gev, return_level_pot1)
 
 Propose a model for the data you have processed in the previous question. Make sure to justify your model choice using residuals and goodness-of-fit tests. (Hint: you may use the evd package.)
 
-Next,  we use likelihood-ratio test for two nested extreme value distribution models, the function used comes from the *extRemes package*.
+We will use likelihood-ratio test for two nested extreme value distribution models, the function used comes from the `extRemes package`.
 
 ```{r test fit, warning=FALSE, message=FALSE, echo=TRUE}
 
@@ -459,7 +457,6 @@ kableExtra::kable(compare_return_level)%>%
 
 
 ```
-
 
 We can confirm by the test and, also, by the AICs that the **Peaks-over-threshold approach** is the best one for fitting the data.
 
@@ -516,6 +513,6 @@ probability_1_year_return
 
 ## {.toc-ignore}
 
-$Conclusion$ :
+*Conclusions*:
 
-- Given our threshold $u$= 1293.76 the probability of exceed it is 1.54%. 
+- Given our threshold $u$ = 1293.76, the probability of exceed it is 1.54%. 
