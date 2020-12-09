@@ -16,10 +16,20 @@ Our goal is to model and monitor the time customers spend waiting, and to take a
 
 ## Exercise A {.tabset .tabset-fade .tabset-pills}
 
-Read in the data and plot the daily waiting times. Compute and display the five-number summary (boxplot) of the daily waiting times for each weekday. What do you observe?
+> Read in the data and plot the daily waiting times. Compute and display the five-number summary (boxplot) of the daily waiting times for each weekday. What do you observe?
 
 ### Daily plot {-}
 
+
+```{r , include=FALSE, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+library(dplyr)
+library(ggplot2)
+library(broom)
+
+```
+  
+  
 ```{r daily-plot, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 library(dplyr)
@@ -78,7 +88,6 @@ kableExtra::kable(summary5_weekday, caption = "Five-number summary by weekday")%
   kableExtra::kable_styling(bootstrap_options = c("striped", full_width = FALSE, position="left")) 
 
 
-
 ```
 </div>
 
@@ -115,27 +124,28 @@ rm(summary5_weekday, p )
 
 $Conclusion$ : our main observations regarding the charts below are the following:
 
-- The daily plot chart below show a continue oscillation of the data during the 447 observations.
-- There are high deviation values regarding the mean in each day.
-- The average per weekday are similar within them, nevertheless, the highest average is made in friday.
+- The daily plot chart show a continue oscillation of the data during the 447 observations (250 obs in 2017 and 197 in 2018).
+- There are high deviation values regarding the mean for each day.
+- The average waiting time per weekday are similar within them, nevertheless, the highest average is made on friday.
 - The highest waiting time is on wednesday.
+- The extreme values are located in the first 4 weekdays and in general they are higher from 900 seconds.
 
 
 ## Exercise B {.tabset .tabset-fade .tabset-pills}
 
-Using a normal approximation produce an upper control limit or confidence line for the waiting times at the one-year return level. What do you notice? Using a Q-Q plot, comment on whether the Normal model is appropriate.
+> Using a normal approximation produce an upper control limit or confidence line for the waiting times at the one-year return level. What do you notice? Using a Q-Q plot, comment on whether the Normal model is appropriate.
 
 ### Upper Control Limit {-}
 
 ```{r ucl, echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
-########Assuming that incomes are normally distributed
+########Assuming that waiting times are normally distributed
 
 #95% CI--> alpha = 0.05 We can get z(alpha/2) = z(0.025) from R:
 nrow<- nrow(data)
 qnorm<- qnorm(.975)   #1.959964
 meanData<- mean(data$Average.Wait.Seconds) #440.6398
-sdData<- sd(data$Average.Wait.Seconds)
+sdData<- sd(data$Average.Wait.Seconds) #206.19
 
 ###########Our margin of error is 
 
@@ -144,15 +154,21 @@ upper_control_limit<- mean(data$Average.Wait.Seconds)+
 
 ```
   
+### Probability of exceeding{-}
+
+```{r o-y-rl, echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+#If X~N(μ, σ)--> pnorm(x, μ, σ) function to calculate P(X > upperbound).
+# r=1
+
+probability_exceed_UCL<- 1 - pnorm( upper_control_limit, 
+                         meanData, sdData)
+probability_exceed_UCL
+
+```
+
 
 ```{r ucl-plot, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
-
-##########not need of the lower bound#######################
-
-#lb<- mean(data$Average.Wait.Seconds)-
-#      qnorm(0.975)*(sd(data$Average.Wait.Seconds)/sqrt(nrow(data)))
-
-###########################################v
 
 data %>% 
   ggplot(aes(Date, Average.Wait.Seconds, group = 1, cex.names=0.1)) + 
@@ -164,33 +180,18 @@ data %>%
   theme(plot.title = element_text(face = "bold", hjust = 0.5)) +
   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, size = 8)) +
   theme(axis.text.y = element_text(hjust = 0.5, size = 8)) +
+  geom_hline(aes(yintercept=meanData), 
+             colour="blue", 
+             linetype="solid") +
   geom_hline(aes(yintercept=upper_control_limit), 
              colour="red", 
              linetype="solid") +
-  labs(subtitle = "The Upper Control Limit is represented as a red solid line at 460 seconds")+
+  labs(subtitle = "The UCL is represented as a red solid line at 460 seconds, the mean by the blue line at 441")+
   theme(plot.subtitle = element_text(face = "italic"))
 
 
 ```
   
-### Probability One-year-return level {-}
-
-```{r o-y-rl, echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
-
-###Probability to exceed the upper bounds
-
-#If X~N(μ, σ)--> pnorm(x, μ, σ) function to calculate P(X > upperbound).
-
-probability_exceed_UCL<- 1 - pnorm( upper_control_limit, 
-                         meanData, sdData)
-
-probability_exceed_UCL
-
-#1/p_exceed_ub = m-years return level
-
-
-```
-
 ### QQ-Plot {-}
 
 
@@ -213,24 +214,24 @@ rm(upper_control_limit, meanData, nrow, qnorm, sdData, probability_exceed_UCL)
 
 $Conclusion$: our main observations regarding the analisis are:
 
-- The upper bound with a normal approximation is very close the mean of the waintin time (Upper bound= 460, Mean= 441).
-- The probability that the upper bound won't be exceeded during the 1-year return period is quite high, because the upper bound do not considere the extreme values and it tends to concentrate in the middle due to the normal approximation.
-- In the QQ-plot we can confirm that the data is not normal is right-skewed (or positively skewed) due to the desviation of the straight line in both extrems. 
+- The upper bound with a normal approximation is very close the mean of the waiting time (Upper bound= 460, Mean= 441) but with this analysis we do not consider information on the behavior of extreme values, which is key to reducing risk --> central limit theorem.
+- 46% of the time we will exceed the upper limit.
+- In the QQ-plot we can confirm that the data is not normal distributed in the limits, because it is right-skewed (or positively skewed) due to the desviation of the straight line in both extrems. 
 
 
 ## Exercise C
 
-The aim of this analysis is to focus on negative effects (long wait times). Explain how you would proceed using 1) a block maxima and 2) a peaks-over-threshold approach. For each method, carry out the required data aggregation and transformation.
+> The aim of this analysis is to focus on negative effects (long wait times). Explain how you would proceed using 1) a block maxima and 2) a peaks-over-threshold approach. For each method, carry out the required data aggregation and transformation.
 
 ### Block Maxima approach {.tabset .tabset-fade .tabset-pills}
 
 We have proposed the following steps:
 
-- First, we determine the block size and the maximum valor for each of them. For this exercise we choose weekly blocks.  
+- First, we need to obtain our $M_{n,i}$, where $n$ is the length of the block--> in this case we have choosen weekly because we only have 2 years of data, that is quite short for analyzed by year.
 
 `Block Maxima:` $$M_{i}=max\{X_{(i−1)n+1},\cdots,X_{in}\},i=1,⋯,m$$
 
-- Then, we fit the a Generalized extrem Value, assuming that it follows \(GEV(\mu_{n},\sigma_{n},\xi)\) distribution and we will focus on maximize the log-likelihood.  
+- Then, we fit the a Generalized extrem Value, assuming that it follows \(GEV(\mu_{n},\sigma_{n},\xi)\) distribution and we will focus on maximize the log-likelihood and the estimation of the parameters.  
 
 - In this step, we decide to test if the parameters correspond to the Gumbel distribution. 
 
@@ -297,11 +298,16 @@ rm(data_ts_dataframe, wms_data_frame)
 
 #### Fit to GEV {-}
 
+```{r , echo=FALSE, include=FALSE, warning=FALSE, message=FALSE}
+
+gev.fit <- ismev::gev.fit(as.vector(wms_data),show = F)
+
+```
+
 ```{r distributionBM , echo=TRUE, warning=FALSE, message=FALSE}
 
 #According to the Fisher–Tippett–Gnedenko theorem, the distribution of block maxima can be approximated by a generalized extreme value distribution.
 
-gev.fit <- ismev::gev.fit(as.vector(wms_data),show = F)
 gev.fit2 <- extRemes::fevd(as.vector(wms_data),method = "MLE", type = "GEV")
 
 ```
@@ -359,13 +365,6 @@ rm(summary_table, gev_gumb, test_gumbel)
 ################## diagnostic PLOTS
 plot(gev.fit2)
 
-# return levels:
-rl_gev <- return.level(gev.fit2, conf = 0.05, return.period= c(2,5,10,20,50,100))
-
-return_level_gev <- c(  rl_gev[1], rl_gev[2], rl_gev[3] , rl_gev[4], rl_gev[5], rl_gev[6] )
-return_period<- c("2 years", "5 years","10 years", "20 years","50 years", "100 years")
-return_level_gev<- data.frame(return_period, return_level_gev)
-
 ```
 
 ### {.toc-ignore}
@@ -373,18 +372,18 @@ return_level_gev<- data.frame(return_period, return_level_gev)
 
 $Conclusion$ : our main observations are the following:
 
-- Even if the shape value is negative it is small enough to fit a Gumbel distribution.
+- Even if the shape value is negative it is small enough to fit a Gumbel distribution as we test with the measure of likelihood-ratio test.
 
+*we are going to perform the analysis of the plot of the fit in the question D.*
 
 
 ### Peaks-over-theshold approach {.tabset .tabset-fade .tabset-pills}
 
 We have proposed the following steps:
 
-- First, we need stablish a larga enough treshold \(u\), where 
-$$\mathbb{P}\left(X_{i}-u>y|X_{i}>u\right)$$, for being able to do we apply a mean residual plot a we select the threshold when the plot start looks linear.
+- First, we need stablish a large enough treshold \(u\), where the following formule need to be fullfill: $$\mathbb{P}\left(X_{i}-u>y|X_{i}>u\right)$$ In order to do that, we are going to run a mean residual plot and then we will select the value where the plot start looks linear.
 
-- Then, we fit the data to a Generaliaze Pareto distribution.  
+- Then, we fit the all the dataset to a Generaliaze Pareto distribution.  
 
 - Finally, we asses the model and compute m-year return levels.
 
@@ -393,9 +392,11 @@ $$\mathbb{P}\left(X_{i}-u>y|X_{i}>u\right)$$, for being able to do we apply a me
 ```{r setting-threshold, warning=FALSE, message=FALSE, echo=FALSE}
 
 # The idea is to ﬁnd the lowest threshold where the plot is nearly linear;
-mrlplot(as.vector(data_ts), main="Mean Residual Daily Plot")
-#around 600 start to be linear
-threshold <- 600
+mrlplot(as.vector(data_ts), main="Mean Residual Daily Plot- Stablish threshold")
+abline(v=700, col="red")
+
+#around 750 start to be linear
+threshold <- 700
 
 
 ```
@@ -428,59 +429,75 @@ pot.fit <- fevd(as.vector(data_ts), method = "MLE",
 # diagnostic plots
 plot(pot.fit)
 
-########compare return_level values##############################
-
-rl_pot <- return.level(pot.fit, conf = 0.05, return.period= c(2,5,10,20,50,100))
-
-return_level_pot1 <- c(  rl_pot[1], rl_pot[2], rl_pot[3] , rl_pot[4], rl_pot[5], rl_pot[6] )
-return_period<- c("2 years", "5 years","10 years", "20 years","50 years", "100 years")
-return_level_pot<- data.frame(return_period, return_level_pot1)
-return_level_pot
-
-compare_return_level<- data.frame(return_level_gev, return_level_pot1)
-
-
 ```
 
 ### {.toc-ignore}
 
+$Conclusion$ : our main observations are the following.
 
-## Exercise D
+- We have changed the threshold level a couple of times and we chose the value 700 since in the density graph we can see what the model captures better.
 
-Propose a model for the data you have processed in the previous question. Make sure to justify your model choice using residuals and goodness-of-fit tests. (Hint: you may use the evd package.)
+*we are going to perform the analysis of the plot of the fit in the question D.*
 
-Next,  we use likelihood-ratio test for two nested extreme value distribution models, the function used comes from the *extRemes package*.
+## Exercise D 
 
-```{r test fit, warning=FALSE, message=FALSE, echo=TRUE}
+> Propose a model for the data you have processed in the previous question. Make sure to justify your model choice using residuals and goodness-of-fit tests. (Hint: you may use the evd package.)
 
-extRemes::lr.test(pot.fit, gev.fit2) #gev. fit2 better
+Now,  we will use likelihood-ratio test for two nested extreme value distribution models,
 
-kableExtra::kable(compare_return_level)%>%
-  kableExtra::kable_styling(bootstrap_options = c("striped")) 
+the function used comes from the *extRemes package*.
 
+### Quantile plot
+
+```{r ,warning=FALSE, message=FALSE, echo=TRUE, fig.cap=" Quantile plot GEV-GP"}
+
+par(mfrow=c(1,2))
+plot(gev.fit2, type = "qq2") 
+plot(pot.fit, type = "qq2")
 
 
 ```
 
 
-We can confirm by the test and, also, by the AICs that the **Peaks-over-threshold approach** is the best one for fitting the data.
+
+$Conclusion$: our main observations regarding the analisis are the following.
+
+- As you can see in the charts, the GEV model has a better fit at the beginning, however, the GP model is better in the extreme values.
+- In addittion, the AICs of the **GP model** is the one that show a better fit of the data. AIC(GEV)= 1242.5 and AIC(GP)= 586. 
+- Finally, we want to avoid overfitting that  is more common with the first model.
 
 ## Exercise E {.tabset .tabset-fade .tabset-pills}
 
-Finally, use your model to derive an upper control limit or confidence line for the waiting times at the one-year return level.
+> Finally, use your model to derive an upper control limit or confidence line for the waiting times at the one-year return level.
 
 ### Computing CI{-}
 
 ```{r selected CI, warning=FALSE, message=FALSE, echo=FALSE}
 
-#we need to assure the following trade-off: threshold too low – bias because of the model asymptotics being invalid; threshold too high – variance is large due to few data points.
+#####################Confidence intervals#############################################
+#for being able to compute it with r 
+
+pot.fit2 <- eva::gpdFit(as.vector(data_ts), method = "mle", 
+                threshold = threshold)
+
+CI_prof_pot<- eva::gpdRl(pot.fit2, 1)
+
+#####################Summary tab#############################################
+
+values<- c( round(as.numeric(CI_prof_pot[1]),2), 
+            round(as.numeric(CI_prof_pot$CI[1]),2), 
+            round(as.numeric(CI_prof_pot$CI[2]),2))
+            
+name<- c( "one year return level","Lower bound", "Upper bound")
+
+summarytab<- data.frame(name,values)
+
+kableExtra::kable(summarytab, caption = "Confidence interval for one-year return level")%>%
+  kableExtra::kable_styling(bootstrap_options = c("striped"), full_width = F) 
 
 
-ci(pot.fit, return.period = 2, verbose = T)  #check the range here
-
-CI_prof_pot <- ci(pot.fit, method="proflik", xrange = c(900, 1700),  
-                    return.period = 2, verbose = TRUE)
-
+rm(name,values)
+  
 ```
 
 ### Plots Bounds {-}
@@ -488,31 +505,20 @@ CI_prof_pot <- ci(pot.fit, method="proflik", xrange = c(900, 1700),
 ```{r plot-bound, warning=FALSE, message=FALSE, echo=FALSE}
 
 #lets us add the bounderies
-hist(as.vector(data_ts), 2, col = "lightblue",
-     xlim = c(400, 2500), prob = T, ylim = c(0, 0.002),
-     xlab = "annual max (0.01 in)",
-     main = "95% CI for 2-yr RL")
+hist(as.vector(data_ts), 1, col = "lightblue",
+     xlim = c(800, 1300), prob = T, ylim = c(0, 0.0002),
+     xlab = "Waiting time",
+     main = "95% CI for 1-yr RL")
 xg <- seq(0, 1700, len = 1000)
 mle <- pot.fit$results$par
 lines(xg, dgpd(xg, loc = 600,
                scale = mle[1], shape = mle[2]))
-for (i in 1:3) abline(v = CI_prof_pot[i], lty = 3, col = "red")
+abline(v = CI_prof_pot$CI[1], lty = 3, col = "red")
+abline(v = CI_prof_pot[1], lty = 3, col = "red")
+abline(v = CI_prof_pot$CI[2], lty = 3, col = "red")
 legend("topleft", legend = c( "Prof"),
        col = c("red"), lty = c(2, 3))
 
-
-```
-
-### Probability 1-year return {-}
-
-```{r probability 1-y , warning=FALSE, message=FALSE, echo=TRUE}
-
-#lets us add the bounderies
-
-return_2year <- return.level(pot.fit, conf = 0.05, return.period= c(2))
-probability_1_year_return <- 1/(return_2year[1]/2)
-
-probability_1_year_return
 
 ```
 
@@ -520,4 +526,4 @@ probability_1_year_return
 
 $Conclusion$ :
 
-- Given our threshold $u$= 1293.76 the probability of exceed it is 1.54%. 
+- Meaning that once a year we are going to exceed the value of 1140.82 seconds for the waiting time with a 95% of confidence. 
