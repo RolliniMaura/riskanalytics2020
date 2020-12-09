@@ -36,6 +36,8 @@ lines(sales10adj$Product_9[1:1500], type = "l", col = "black") +
 lines(sales10adj$Product_10[1:1500], type = "l", col = "yellow") + 
   abline(h=120, col="red")
 library(RVAideMemoire)
+library(tidyverse)
+library(kableExtra)
 mqqnorm(sales10adj)
 ```
 
@@ -57,7 +59,7 @@ A graphical method to see the eytreme would be to determine a threshold u which 
 
 
 ```{r Kable of tail dependance}
-
+# Computing the matrix of chibar values (evaluating the tail dependances among products)
 P1<- list(TaildepP1P2 =taildep(sales10adj$Product_1,sales10adj$Product_2,0.95,type = c("chibar"), na.rm = FALSE), 
          TaildepP1P3 =taildep(sales10adj$Product_1,sales10adj$Product_3,0.95,type = c("chibar"), na.rm = FALSE),
          TaildepP1P4 =taildep(sales10adj$Product_1,sales10adj$Product_4,0.95,type = c("chibar"), na.rm = FALSE),
@@ -144,8 +146,8 @@ P9 <-list(Taildep = 0,
           Taildep=  0,
           Taildep=  0,
           TaildepP4P10 =taildep(sales10adj$Product_9,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
-unlist(P9)
-View(taildep)
+pp<- rbind(unlist(P1),unlist(P2),unlist(P3),unlist(P4),unlist(P5),unlist(P6),unlist(P7),unlist(P8),unlist(P9))
+pp %>% kable() %>% kable_styling()
 ```
 
 Since our chibar is below, we assume a certain degree of dependance, which discard the possibility to use a gaussian.
