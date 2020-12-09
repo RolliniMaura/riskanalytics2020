@@ -3,44 +3,226 @@ title: "Practical 3"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup practical 3, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(here)
 sales10 <- read.csv(here::here("sales_10.csv"))
 sales10adj <- read.csv(here::here("sales_10_adjusted.csv"))
 ```
 
-In this third practical, we expand the retail sales dataset of Practical 2 to include multiple products. 
+> In this third practical, we expand the retail sales dataset of Practical 2 to include multiple products. 
 Data for Product 1 (from Practical 2) and an additional 9 products are given in two forms: sales 10.csv and sales 10 adjusted.csv, with the same format. 
 As the name indicates, sales volumes in the latter file have been adjusted for trend and seasonality (removing growth and cyclical patterns).
 
-(a) Explain the challenges involved when analysing the risk of stock-out across several products. What is the danger of considering each series independently?
+> (a) Explain the challenges involved when analysing the risk of stock-out across several products. What is the danger of considering each series independently?
+
+Analyzing the risk of stock-out for various products is a hard task, because we might face different products' distributions, different underlying patterns (such as a difference in seasonality) and effects stemming from different external factors (the launch of a competitor's products phagocytizing the sales of one of the products, e.g). Multicolineraity is the reverse problem: products are too similar. In both cases, the fitted model for the stock-outs of the 10 products would not fit well the data, resulting in a potential poor information delivery and low accuracy for prescriptive actions.
+
+
+Thus we assume that each series share a certain amount of information among them. In facts, we know here that the analysis would concern 10 products sold by the same company. Imagine those 10 products are very differents: they would necessary come from related production, similar distribution channel, inventories, sold to customers with more or less the same profile, since sharing the same needs, and so on.
+
+Those elements illustrate those 10 products share "information". We cannot rely on a complete independance among products and this is the reason why we cannot consider each series as independant.We draw a plot without distinguing the product, but we see that some products follow the same pattern (obviously seen with the blue and orange curves).
+
+```{r plot glimpse on product, echo=FALSE}
+plot(sales10adj$Product_1[1:1500], type = "l", col = "blue", main = "Daily Sales",xlab = "Day", ylab = "Daily sales (unit)") +
+lines(sales10adj$Product_2[1:1500],  type = "l", col = "green") +
+lines(sales10adj$Product_3[1:1500], type = "l", col = "purple") +
+lines(sales10adj$Product_4[1:1500], type = "l", col = "red") +
+lines(sales10adj$Product_5[1:1500], type = "l", col = "grey") +
+lines(sales10adj$Product_6[1:1500], type = "l", col = "brown") +
+lines(sales10adj$Product_7[1:1500], type = "l", col = "orange") +
+lines(sales10adj$Product_8[1:1500], type = "l", col = "pink") +
+lines(sales10adj$Product_9[1:1500], type = "l", col = "black") +
+lines(sales10adj$Product_10[1:1500], type = "l", col = "yellow") + 
+  abline(h=120, col="red")
+library(RVAideMemoire)
+mqqnorm(sales10adj)
+```
+
+The multi-normal QQplot depicts tha heavy tails of our sample of products, by the strong deviation of the normal line (solid line) as soon as reaching the 17th quantile.
+
+To investigate quickly if our products are have any relationship, we compute the correlation matrix, as follow:
+
+```{r kable correlation matrix, echo=FALSE}
+library(kableExtra)
+cor <- sales10adj %>% cor(method = "kendall") %>% round( digits = 3) 
+cor %>% kable() %>% kable_styling()
+```
+We decide to investigate the correlation between the 10 products under analysis and to do so, we compute their Kendall's tau value. Kendall's tau, so does Spearman's rho, is more robust than the Pearson correlation parameter, since it takes into account the order the values and is preferes when working with ranks. Further analysis will be conducted on quantiles of distribution of sales10adj, this is the justification f the use of Kendall's tau.
+
+> (b) Propose one graphical and one numerical method of detecting dependence of extreme values of the demand across several products. Apply your chosen methods to the adjusted sales data and identify groups of related products (if any exist).
+
+A graphical method to see the eytreme would be to determine a threshold u which woud define the limit where we enter in the extreme values. Another way we will explore in more details below is the bivariate plot, where we have to look at the top-right and bottom-left 
 
 
 
-(b) Propose one graphical and one numerical method of detecting dependence of extreme values of the demand across several products. Apply your chosen methods to the adjusted sales data and identify groups of related products (if any exist).
+```{r Kable of tail dependance}
+
+P1<- list(TaildepP1P2 =taildep(sales10adj$Product_1,sales10adj$Product_2,0.95,type = c("chibar"), na.rm = FALSE), 
+         TaildepP1P3 =taildep(sales10adj$Product_1,sales10adj$Product_3,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP1P4 =taildep(sales10adj$Product_1,sales10adj$Product_4,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP1P5 =taildep(sales10adj$Product_1,sales10adj$Product_5,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP1P6 =taildep(sales10adj$Product_1,sales10adj$Product_6,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP1P7 =taildep(sales10adj$Product_1,sales10adj$Product_7,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP1P8 =taildep(sales10adj$Product_1,sales10adj$Product_8,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP1P9 =taildep(sales10adj$Product_1,sales10adj$Product_9,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP1P10 =taildep(sales10adj$Product_1,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+
+P2<- list(TaildepP2P3 = 0,
+          TaildepP2P3 =taildep(sales10adj$Product_2,sales10adj$Product_3,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP2P4 =taildep(sales10adj$Product_2,sales10adj$Product_4,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP2P5 =taildep(sales10adj$Product_2,sales10adj$Product_5,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP2P6 =taildep(sales10adj$Product_2,sales10adj$Product_6,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP2P7 =taildep(sales10adj$Product_2,sales10adj$Product_7,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP2P8 =taildep(sales10adj$Product_2,sales10adj$Product_8,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP2P9 =taildep(sales10adj$Product_2,sales10adj$Product_9,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP2P10 =taildep(sales10adj$Product_2,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+
+P3 <-list(Taildep = 0,
+          Taildep = 0,
+          TaildepP4P4 =taildep(sales10adj$Product_3,sales10adj$Product_4,0.95,type = c("chibar"), na.rm = FALSE),
+            TaildepP4P5 =taildep(sales10adj$Product_3,sales10adj$Product_5,0.95,type = c("chibar"), na.rm = FALSE),
+            TaildepP4P6 =taildep(sales10adj$Product_3,sales10adj$Product_6,0.95,type = c("chibar"), na.rm = FALSE),
+            TaildepP4P7 =taildep(sales10adj$Product_3,sales10adj$Product_7,0.95,type = c("chibar"), na.rm = FALSE),
+            TaildepP4P8 =taildep(sales10adj$Product_3,sales10adj$Product_8,0.95,type = c("chibar"), na.rm = FALSE),
+            TaildepP4P9 =taildep(sales10adj$Product_3,sales10adj$Product_9,0.95,type = c("chibar"), na.rm = FALSE),
+            TaildepP4P10 =taildep(sales10adj$Product_3,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+P4 <-list(Taildep = 0,
+          Taildep = 0,
+          Taildep = 0,
+          TaildepP4P5 =taildep(sales10adj$Product_4,sales10adj$Product_5,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P6 =taildep(sales10adj$Product_4,sales10adj$Product_6,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P7 =taildep(sales10adj$Product_4,sales10adj$Product_7,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P8 =taildep(sales10adj$Product_4,sales10adj$Product_8,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P9 =taildep(sales10adj$Product_4,sales10adj$Product_9,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P10 =taildep(sales10adj$Product_4,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+P5 <-list(Taildep = 0,
+          Taildep = 0,
+          Taildep = 0,
+          Taildep=  0,
+          TaildepP4P6 =taildep(sales10adj$Product_5,sales10adj$Product_6,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P7 =taildep(sales10adj$Product_5,sales10adj$Product_7,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P8 =taildep(sales10adj$Product_5,sales10adj$Product_8,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P9 =taildep(sales10adj$Product_5,sales10adj$Product_9,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P10 =taildep(sales10adj$Product_5,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+P6 <-list(Taildep = 0,
+          Taildep = 0,
+          Taildep = 0,
+          Taildep=  0,
+          Taildep=  0,
+          TaildepP4P7 =taildep(sales10adj$Product_6,sales10adj$Product_7,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P8 =taildep(sales10adj$Product_6,sales10adj$Product_8,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P9 =taildep(sales10adj$Product_6,sales10adj$Product_9,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P10 =taildep(sales10adj$Product_6,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+
+P7 <-list(Taildep = 0,
+          Taildep = 0,
+          Taildep = 0,
+          Taildep=  0,
+          Taildep=  0,
+          Taildep=  0,
+          TaildepP4P8 =taildep(sales10adj$Product_7,sales10adj$Product_8,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P9 =taildep(sales10adj$Product_7,sales10adj$Product_9,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P10 =taildep(sales10adj$Product_7,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+
+P8 <-list(Taildep = 0,
+          Taildep = 0,
+          Taildep = 0,
+          Taildep=  0,
+          Taildep=  0,          
+          Taildep=  0,
+          Taildep=  0,
+          TaildepP4P9 =taildep(sales10adj$Product_8,sales10adj$Product_9,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P10 =taildep(sales10adj$Product_8,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+
+P9 <-list(Taildep = 0,
+          Taildep = 0,
+          Taildep = 0,
+          Taildep=  0,
+          Taildep=  0,          
+          Taildep=  0,
+          Taildep=  0,
+          Taildep=  0,
+          TaildepP4P10 =taildep(sales10adj$Product_9,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+unlist(P9)
+View(taildep)
+```
+
+Since our chibar is below, we assume a certain degree of dependance, which discard the possibility to use a gaussian.
+
+```{r categorization }
+### To categorize the product, let's draw a scatter plot with x = mean,, y = variance
+
+var.sales10adj <- apply(sales10adj, 2, var)    # compute variance
+mean.sales10adj <-apply(sales10adj, 2, mean)   # compute mean
+plot(var.sales10adj ~ mean.sales10adj,
+     main = "Clustering?", 
+     xlab = "Mean value per product", 
+     ylab = "Variance per product",
+     xlim = c(-0.005,0.007),
+     ylim = c(0, 1700),
+text(var.sales10adj ~ mean.sales10adj, labels=colnames(sales10adj),data=sales10adj, pos = 3, cex=0.8, font=3))
+
+#To investigate the dependance, we would use a classification tree method computed with the Kendall's taus distance among products. 
+plot(hclust(as.dist(cor)), main = "Clustering our 10 products by\ntheir correlation value (Kendall's tau)", ylab = "Height of the distance", xlab = "Clusters computed by Complete Linkage")
+#  to better analyse the dependance on extreme values, we would look closer to the arbitrarily defined "extreme values", by setting a threshold u to a defined value, the same than previously
+
+```
+
+> (c) In view of your answer to (f), would you apply a Gaussian copula model to these data?
+
+```{r}
+# Should I use the obs ID to compute my model?
 
 
+```
 
-(c) In view of your answer to (f), would you apply a Gaussian copula model to these data?
-
-
-
-(d) (Hard) Fit a multivariate model to the adjusted sales data and estimate the 95% Demand at Risk for the sum:
+> (d) (Hard) Fit a multivariate model to the adjusted sales data and estimate the 95% Demand at Risk for the sum:
 $$S = X^{(1)} + X^{(2)} + ... + X^{(10)}$$
 You can do so with the following steps: 
 
-i. Transofrm the sales for each product to a uniform scale, that is, compute 
+i. Transform the sales for each product to a uniform scale, that is, compute 
 $$F_i(X^{(i)})$$
-for each X in 1, ..., n being each of the product sales and F being the esimated Extreme Value distributions.
+for each X in 1, ..., n being each of the product sales and F being the estimated Extreme Value distributions.
+
+```{r}
+library(copula)
+pob <- pobs(sales10adj)   # turn into uniform distributed data
+
+```
+
+### Normal copula
+
+nc <- normalCopula(iTau(normalCopula(), tau = 0.5))
+set.seed(271)
+U <- rCopula(1000, copula = nc) # sample from the normal copula
+wireframe2(nc, FUN = dCopula, delta = 0.025) # density
+contourplot2(nc, FUN = pCopula) # copula
+contourplot2(nc, FUN = dCopula, n.grid = 42, cuts = 33, lwd = 1/2) # density
+plot(U, xlab = quote(U[1]), ylab = quote(U[2])) # scatter plot
 
 
 ii. Fit a multivariate copula of your choice using the `copula::fitCopula` function.
-
+```{r}
+library(copula)
+tc <- tCopula(dim = 10, dispstr = "un", df = 4, df.fixed = FALSE, df.min = 0.01)  # create a Student t copula to enter in the function copula
+vv <-fitCopula(tc, pob)     # use the function to fit the Student copula to the data
+vv
+```
 
 iii. Simulate from your fitted copula and transform the values back to their original scales (i.e. undo the transformation in i.)
-
+```{r}
+library(copula)
+tc <- tCopula(dim = 10, dispstr = "un", df = 4, df.fixed = FALSE, df.min = 0.01)  # create a Student t copula to enter in the function copula
+vv <-fitCopula(tc, pob)     # use the function to fit the Student copula to the data
+vv
+```
 
 iv. Compute the simulated values of S and their 95% Value at Risk.
-
+```{r}
+library(copula)
+tc <- tCopula(dim = 10, dispstr = "un", df = 4, df.fixed = FALSE, df.min = 0.01)  # create a Student t copula to enter in the function copula
+vv <-fitCopula(tc, pob)     # use the function to fit the Student copula to the data
+vv
+```
 

@@ -132,7 +132,7 @@ extRemes::threshrange.plot(sales$Sales, r = c(70, 150), nint = 80)
 #let's fix the threshold at 120 as after it the distribution seems to be flat in the second graph and there is the elbow in the first one
 u <- 120
 
-plot(sales$Sales, type = "l", main = "Daily Sales")
+plot(sales$Sales, type = "l", main = "Daily Sales") +
 abline(h = u, col = "red")
 
 #Weights for the observations above the threshold chosen
