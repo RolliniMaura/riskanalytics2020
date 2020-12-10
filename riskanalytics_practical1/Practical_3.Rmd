@@ -161,12 +161,28 @@ plot(var.sales10adj ~ mean.sales10adj,
      xlab = "Mean value per product", 
      ylab = "Variance per product",
      xlim = c(-0.005,0.007),
-     ylim = c(0, 1700),
-     text(var.sales10adj ~ mean.sales10adj, labels=colnames(sales10adj),data=sales10adj, pos = 3, cex=0.8, font=3))
+     ylim = c(0, 1700))
+     text(var.sales10adj ~ mean.sales10adj, labels=colnames(sales10adj),data=sales10adj, pos = 3, cex=0.8, font=3)
 
 #To investigate the dependance, we would use a classification tree method computed with the Kendall's taus distance among products. 
 plot(hclust(as.dist(cor)), main = "Clustering our 10 products by\ntheir correlation value (Kendall's tau)", ylab = "Height of the distance", xlab = "Clusters computed by Complete Linkage")
 #to better analyse the dependance on extreme values, we would look closer to the arbitrarily defined "extreme values", by setting a threshold u to a defined value, the same than previously
+
+```
+
+```{r}
+
+library(evd)
+for(i in 1:10){
+  n <- sales10adj[,i:(i+1)]
+  chiplot(n, which = 1)
+}
+
+for(i in 1:10){
+  n <- sales10adj[,i:(i+2)]
+  chiplot(n, which = 1)
+}
+
 
 ```
 
