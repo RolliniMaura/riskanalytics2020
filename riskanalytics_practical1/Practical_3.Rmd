@@ -18,10 +18,9 @@ As the name indicates, sales volumes in the latter file have been adjusted for t
 
 Analyzing the risk of stock-out for various products is a hard task, because we might face different products' distributions, different underlying patterns (such as a difference in seasonality) and effects stemming from different external factors (the launch of a competitor's products phagocytizing the sales of one of the products, e.g). Multicolineraity is the reverse problem: products are too similar. In both cases, the fitted model for the stock-outs of the 10 products would not fit well the data, resulting in a potential poor information delivery and low accuracy for prescriptive actions.
 
-
 Thus we assume that each series share a certain amount of information among them. In facts, we know here that the analysis would concern 10 products sold by the same company. Imagine those 10 products are very differents: they would necessary come from related production, similar distribution channel, inventories, sold to customers with more or less the same profile, since sharing the same needs, and so on.
 
-Those elements illustrate those 10 products share "information". We cannot rely on a complete independance among products and this is the reason why we cannot consider each series as independant.We draw a plot without distinguing the product, but we see that some products follow the same pattern (obviously seen with the blue and orange curves).
+Those elements illustrate those 10 products share "information". We cannot rely on a complete independance among products and this is the reason why we cannot consider each series as independant. We draw a plot without distinguishing the products, but we see that some of them follow the same pattern (obviously seen with the blue and orange curves).
 
 ```{r plot glimpse on product, echo=FALSE}
 plot(sales10adj$Product_1[1:1500], type = "l", col = "blue", main = "Daily Sales",xlab = "Day", ylab = "Daily sales (unit)") +
@@ -50,16 +49,16 @@ library(kableExtra)
 cor <- sales10adj %>% cor(method = "kendall") %>% round( digits = 3) 
 cor %>% kable() %>% kable_styling()
 ```
+
 We decide to investigate the correlation between the 10 products under analysis and to do so, we compute their Kendall's tau value. Kendall's tau, so does Spearman's rho, is more robust than the Pearson correlation parameter, since it takes into account the order the values and is preferes when working with ranks. Further analysis will be conducted on quantiles of distribution of sales10adj, this is the justification f the use of Kendall's tau.
 
 > (b) Propose one graphical and one numerical method of detecting dependence of extreme values of the demand across several products. Apply your chosen methods to the adjusted sales data and identify groups of related products (if any exist).
 
 A graphical method to see the eytreme would be to determine a threshold u which woud define the limit where we enter in the extreme values. Another way we will explore in more details below is the bivariate plot, where we have to look at the top-right and bottom-left 
 
-
-
 ```{r Kable of tail dependance}
 # Computing the matrix of chibar values (evaluating the tail dependances among products)
+library(extRemes)
 P1<- list(TaildepP1P2 =taildep(sales10adj$Product_1,sales10adj$Product_2,0.95,type = c("chibar"), na.rm = FALSE), 
          TaildepP1P3 =taildep(sales10adj$Product_1,sales10adj$Product_3,0.95,type = c("chibar"), na.rm = FALSE),
          TaildepP1P4 =taildep(sales10adj$Product_1,sales10adj$Product_4,0.95,type = c("chibar"), na.rm = FALSE),
@@ -163,11 +162,11 @@ plot(var.sales10adj ~ mean.sales10adj,
      ylab = "Variance per product",
      xlim = c(-0.005,0.007),
      ylim = c(0, 1700),
-text(var.sales10adj ~ mean.sales10adj, labels=colnames(sales10adj),data=sales10adj, pos = 3, cex=0.8, font=3))
+     text(var.sales10adj ~ mean.sales10adj, labels=colnames(sales10adj),data=sales10adj, pos = 3, cex=0.8, font=3))
 
 #To investigate the dependance, we would use a classification tree method computed with the Kendall's taus distance among products. 
 plot(hclust(as.dist(cor)), main = "Clustering our 10 products by\ntheir correlation value (Kendall's tau)", ylab = "Height of the distance", xlab = "Clusters computed by Complete Linkage")
-#  to better analyse the dependance on extreme values, we would look closer to the arbitrarily defined "extreme values", by setting a threshold u to a defined value, the same than previously
+#to better analyse the dependance on extreme values, we would look closer to the arbitrarily defined "extreme values", by setting a threshold u to a defined value, the same than previously
 
 ```
 
