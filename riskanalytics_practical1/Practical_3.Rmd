@@ -54,7 +54,7 @@ We decide to investigate the correlation between the 10 products under analysis 
 
 > (b) Propose one graphical and one numerical method of detecting dependence of extreme values of the demand across several products. Apply your chosen methods to the adjusted sales data and identify groups of related products (if any exist).
 
-A graphical method to see the eytreme would be to determine a threshold u which woud define the limit where we enter in the extreme values. Another way we will explore in more details below is the bivariate plot, where we have to look at the top-right and bottom-left 
+A graphical method to see the extreme would be to determine a threshold u which woud define the limit where we enter in the extreme values. Another way we will explore in more details below is the bivariate plot, where we have to look at the top-right and bottom-left 
 
 ```{r Kable of tail dependance}
 # Computing the matrix of chibar values (evaluating the tail dependances among products)
