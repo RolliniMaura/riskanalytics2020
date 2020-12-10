@@ -54,6 +54,17 @@ We decide to investigate the correlation between the 10 products under analysis 
 
 > (b) Propose one graphical and one numerical method of detecting dependence of extreme values of the demand across several products. Apply your chosen methods to the adjusted sales data and identify groups of related products (if any exist).
 
+Grafico:
+1. plot all products with threshold 
+2. Chi plot 
+
+Matematico:
+1. Correlation matrix (chibar) 
+
+Products aggregation:
+- Clustering based on Kendall Taus distance 
+- Grafico con mean and variance 
+
 A graphical method to see the extreme would be to determine a threshold u which woud define the limit where we enter in the extreme values. Another way we will explore in more details below is the bivariate plot, where we have to look at the top-right and bottom-left 
 
 ```{r Kable of tail dependance}
@@ -164,6 +175,8 @@ plot(var.sales10adj ~ mean.sales10adj,
      ylim = c(0, 1700))
      text(var.sales10adj ~ mean.sales10adj, labels=colnames(sales10adj),data=sales10adj, pos = 3, cex=0.8, font=3)
 
+     
+tau.dist()     
 #To investigate the dependance, we would use a classification tree method computed with the Kendall's taus distance among products. 
 plot(hclust(as.dist(cor)), main = "Clustering our 10 products by\ntheir correlation value (Kendall's tau)", ylab = "Height of the distance", xlab = "Clusters computed by Complete Linkage")
 #to better analyse the dependance on extreme values, we would look closer to the arbitrarily defined "extreme values", by setting a threshold u to a defined value, the same than previously
@@ -186,13 +199,10 @@ for(i in 1:10){
 
 ```
 
-> (c) In view of your answer to (f), would you apply a Gaussian copula model to these data?
+> (c) In view of your answer to (b), would you apply a Gaussian copula model to these data?
 
-```{r}
-# Should I use the obs ID to compute my model?
-
-
-```
+If the extreme value distributions follow a normal distribution than yes, otherwise no. 
+=> check 
 
 > (d) (Hard) Fit a multivariate model to the adjusted sales data and estimate the 95% Demand at Risk for the sum:
 $$S = X^{(1)} + X^{(2)} + ... + X^{(10)}$$
@@ -203,6 +213,42 @@ $$F_i(X^{(i)})$$
 for each X in 1, ..., n being each of the product sales and F being the estimated Extreme Value distributions.
 
 ```{r}
+
+transform_to_uniform <- function(y,
+                                 cdf,
+                                 threshold,
+                                 ...) {
+  # ...: arguments to `cdf`
+  
+  above <- y > threshold
+  # proportion of exceedances
+  p <- mean(above)
+  # under the threshold, use the empirical CDF
+  # see ?ecdf
+  ecdf_below <- ecdf(y[!above])
+  empirical <- ecdf_below(y[!above])
+  # above, apply cdf
+  theoretical <- cdf(y[above], ...)
+  
+  transformed <- numeric(length = length(y))
+  # "Glue together" the empirical and theoretical parts by rescaling them:
+  
+  #        empirical          e.g. N(0,1)
+  # [-----------------------|-------------]
+  # 0                      1-p            1
+  
+  transformed[!above] <- (1 - p) * empirical    # (1)
+  transformed[above] <- 1 - p + p * theoretical # (2)
+  
+  return(list(
+    transformed = transformed,
+    ecdf = ecdf_below,
+    prop = p
+  ))
+}
+
+transform_to_uniform(sales10adj, cdf = ismev::gev.fit, threshold = 150)
+
 library(copula)
 pob <- pobs(sales10adj)   # turn into uniform distributed data
 
