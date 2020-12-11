@@ -22,7 +22,7 @@ Our goal is to model and monitor the time customers spend waiting, and to take a
 ### Daily plot {-}
 
 
-```{r , include=FALSE, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+```{r, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 
 library(dplyr)
 library(ggplot2)

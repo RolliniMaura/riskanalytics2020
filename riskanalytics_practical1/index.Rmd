@@ -33,7 +33,7 @@ knitr::opts_chunk$set(
 
 ```{r htmlTemplate, echo=FALSE}
 # Create the external file
-img <- htmltools::img(src = knitr::image_uri("data/Logo.png"), 
+img <- htmltools::img(src = knitr::image_uri("Logo.png"), 
                alt = 'logo', 
                style = 'position:absolute; top:0; right:0; padding:10px; width: 255px; height: 130px')
 

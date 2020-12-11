@@ -3,11 +3,11 @@ title: "Practical 2"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r libraries, include = FALSE}
+```{r, include = FALSE}
 
 library(dplyr)
 library(xts)
@@ -27,7 +27,7 @@ Consider the observations recorded in sales 1.txt, which contain the daily sales
 # Exercise a
 > Construct a figure which shows the daily sales volume, and study the values just before the product is out of stock. What do you notice? Explain why this is related to stock-out.
 
-```{r loading data, include = FALSE, warning=FALSE}
+```{r, include = FALSE, warning=FALSE}
 
 sales <- read.delim(here::here("sales_1.txt"), header = FALSE)
 sales %<>% dplyr::rename(Sales = V1)
@@ -35,7 +35,7 @@ sales %<>% dplyr::rename(Sales = V1)
 ```
 
 
-```{r daily sales, fig.width=20, fig.height=8}
+```{r, fig.width=20, fig.height=8}
 
 plot(sales$Sales, type = "l", main = "Daily Sales")
 outofstock <- which(diff(sales$Sales) == -sales$Sales & sales$Sales !=0)
@@ -52,7 +52,7 @@ It seems there is some seasonality element in the data, as the product is out of
 
 Otherwise, we can calculate it by hand. 
 
-```{r manual newsvendor}
+```{r}
 
 #price
 pr <- 10
@@ -102,7 +102,7 @@ The Expected Shortfall at level p will then be the value of the sales if they ar
 
 > Fit a Poisson model to the sales volume data by assuming that Yi ∼ Poisson(μ) and using maximum likelihood estimation for μ. (Hint: you may use MASS::fitdistr). According to this model, what is the estimated critical fractile?
 
-```{r poisson by hand}
+```{r}
 
 poisson <- fitdistr(sales$Sales, "Poisson")
 #lambda of the poisson distribution
@@ -122,7 +122,7 @@ And it corresponds to `r q`.
 
 > Suppose we model the sales as an extreme value distribution using a peaks-over-thresholds method. Give the Value at Risk at level p under this model.
 
-```{r EVD, fig.width=12, fig.height=10}
+```{r, fig.width=12, fig.height=10}
 
 #Mean Residual Life Plot
 extRemes::mrlplot(sales$Sales, main="Mean Residual Life Plot")
@@ -182,7 +182,7 @@ To backtest:
 
 We will split the data in two subgroups, the first one being the training set which we will use to estimate the VaR will comprehend the observations up to the last 300 days of the data, while the last 300 observations will be the test set to which we will compare the VaR we will find. 
 
-```{r test set poisson}
+```{r}
 
 salesTest <- sales$Sales[(nrow(sales)-299):(nrow(sales))]
 
@@ -198,7 +198,7 @@ We start by creating a function that works in the following way:
 3. determines the lambda of the poisson distribution
 4. caclulate the VaR by taking the 0.91 quantile of the poisson we fit
 
-```{r poisson VaR}
+```{r}
 
 poissVaR <- function(df){ 
   
@@ -219,7 +219,7 @@ poissVaR <- function(df){
 
 Then, we can create a loop to get the VaR for the observations inside the test set.
 
-```{r VaR calculation poisson}
+```{r}
 
 #create a vector to store the values 
 poissVAR <- as.numeric(1:300)
@@ -241,7 +241,7 @@ As we can see they take they almost take the same values, this is due to the fac
 
 Now, we compare the VaR we estimated to the real values, to see how many violations there are. The should be following a bernoulli distribution with n = 300 and p = 1 - alpha.
 
-```{r comparison poisson}
+```{r}
 
 #number of observed violations
 poiss.violations <- sum(ifelse(poissVAR > salesTest, 0, 1))
@@ -263,7 +263,7 @@ We can test whether they are statistically significantly different by using a bi
 $$H_0: \pi = \pi_0$$
 In our case the theoretical π will equal to `r 1 - p`, while the probability found in the observations is `r poiss.violations/300`. We want to test if waht it observed is different from the expected value. 
 
-```{r binomial test poisson}
+```{r}
 
 (bintest.poiss <- binom.test(poiss.violations, 300, p = 1-p))
 
@@ -277,7 +277,7 @@ We can see that for the poisson, the p-value is really low `r bintest.poiss$p.va
 
 We will split the data in two subgroups, the first one being the training set which we will use to estimate the VaR will comprehend the observations up to the last 300 days of the data, while the last 300 observations will be the test set to which we will compare the VaR we will find. 
 
-```{r test set POT}
+```{r}
 
 salesTest <- sales$Sales[(nrow(sales)-299):(nrow(sales))]
 
@@ -296,7 +296,7 @@ In order to do so, we start by creating a function to calculate the VaR for a gi
 - estimation of Fbar ny dividing the number of observations above the threshold in the window and the total number of observation in the window,
 - put all the estimators in the formula to calculate the value at risk.
 
-```{r VaR function POT}
+```{r}
 
 VaRest <- function(df){
   
@@ -355,7 +355,7 @@ We can see that there are quite a lot of repetitions in the estimation of the va
 
 Now, we compare the VaR we estimated to the real values, to see how many violations there are. The should be following a bernoulli distribution with n = 300 and p = 1 - alpha.
 
-```{r comparison POT}
+```{r}
 
 #number of observed violations
 violations <- sum(ifelse(VAR > salesTest, 0, 1))
@@ -375,7 +375,7 @@ We can test whether they are statistically significantly different by using a bi
 $$H_0: \pi = \pi_0$$
 In our case the theoretical π will equal to `r 1 - p`, while the probability found in the observations is `r violations/300`. We want to test if waht it observed is different from the expected value. 
 
-```{r binomial test POT}
+```{r}
 
 (bintest <- binom.test(violations, 300, p = 1-p))
 
