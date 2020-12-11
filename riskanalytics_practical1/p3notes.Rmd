@@ -1,0 +1,625 @@
+---
+title: "Practical 3"
+output: html_document
+---
+
+```{r setup practical 3, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(RVAideMemoire)
+library(tidyverse)
+library(kableExtra)
+library(gridExtra)
+library(extRemes)
+sales10 <- read.csv(here::here("sales_10.csv"))
+sales10adj <- read.csv(here::here("sales_10_adjusted.csv"))
+```
+
+> In this third practical, we expand the retail sales dataset of Practical 2 to include multiple products. 
+Data for Product 1 (from Practical 2) and an additional 9 products are given in two forms: sales 10.csv and sales 10 adjusted.csv, with the same format. 
+As the name indicates, sales volumes in the latter file have been adjusted for trend and seasonality (removing growth and cyclical patterns).
+
+> (a) Explain the challenges involved when analysing the risk of stock-out across several products. What is the danger of considering each series independently?
+
+
+The aplication of an independently analysis (EVT) could cause a loss of information and therefore a lack of preparation in face of a risky event. For example, the analysis of stock out from 3 products independently are not consider risky, nevertheless, the stock out of the 3 together could be consider as a very high risky event due to the high probability of loosing a customer. 
+
+**MEVT has as a main objective to find the probabilities that extreme events happen together.**
+
+The main problem would be given by the fact that the different products may not be independent even if we consider them to be, it can be seen if one of them has an extreme value in the demand and so does another one, every time at the same date. 
+This can happen as the products may be related, as for example could be bread and butter, meaning that if there is an increase in the demand of one product, so there will be in the demand for the other one. 
+Another possibility is the fact that, especially for extreme values, so an abrupt change in the demand, could be determined by external factors, such as a natural disaster, that would make the demand for all sort of products increase from one day to the other. 
+Indeed, it could be a problem, as by analysing the stock-outs, which are extreme values, independently one from the other, we could miss some important relationship that are between them and not being able to assess the risk in the best way possible.
+
+> (b) Propose one graphical and one numerical method of detecting dependence of extreme values of the demand across several products. Apply your chosen methods to the adjusted sales data and identify groups of related products (if any exist).
+
+For the graphical way, we will use two methods:
+1. A plot with all the products distributions over time, in which we will set a threshold at an arbitrary value, so that we can study the values that are above it and see if there is repeated pattern (for example having always two products that are above the threhsold in two close dates) </br>
+2. A chi plot among all the different couples of products, so that we can study the distribution of the tails of the products' demands
+
+On the other hand, for the mathematical method, we will calculate the chibar values, which will give the tail dependences among all the different couples of products. 
+
+Eventually, we will move on to the aggregation of similar products by doing two different analysis:
+1. We will calculate the mean and variance for each product and display them on a graph, to see if they have any similar product close to them
+2. Then, we will calculate the Kendall taus distances among the products and see the clustering of the products based on the distance
+
+We will start with the graphical methods. 
+
+First, let's create a plot with all the products' demands distibutions. 
+
+```{r, echo=FALSE, fig.height=8}
+
+#plot with all products' demand
+plot(sales10adj$Product_1[1:1500], type = "l", col = "blue", main = "Daily Sales",xlab = "Day", ylab = "Daily sales (unit)") +
+lines(sales10adj$Product_2[1:1500],  type = "l", col = "green") +
+lines(sales10adj$Product_3[1:1500], type = "l", col = "purple") +
+lines(sales10adj$Product_4[1:1500], type = "l", col = "red") +
+lines(sales10adj$Product_5[1:1500], type = "l", col = "grey") +
+lines(sales10adj$Product_6[1:1500], type = "l", col = "brown") +
+lines(sales10adj$Product_7[1:1500], type = "l", col = "orange") +
+lines(sales10adj$Product_8[1:1500], type = "l", col = "pink") +
+lines(sales10adj$Product_9[1:1500], type = "l", col = "black") +
+lines(sales10adj$Product_10[1:1500], type = "l", col = "yellow") + 
+abline(h = 100)
+
+```
+
+In order to determine the threshold for the extreme values, we will take the 98% quantile of the distribution of the sales of each product, as we could find very different distributions and taking only one threshold overall would not give us any important information. 
+
+```{r}
+
+for(i in 1:10){
+ plot(sales10adj[1:1500,i], type = "l", col = "black",xlab = "Day", ylab = "Daily sales (unit)", main = ) +
+  abline(h=quantile(sales10adj[,i], 0.99), col="red")
+}
+
+```
+As we can see, we have some observations in each product taht are above the line. We are particularly interested in seeing if there is a repetition in the observations that are above the lines that happen around the same time for different products.
+
+Hence we will determine the number of the observations in which it happens for each products and we try to see if there is some repetitions in the values. 
+
+```{r, fig.width=20}
+
+VAR1 <- ifelse(sales10adj[,1] < quantile(sales10adj[,1], 0.99), 0, 1)
+date.p1 <- sales10adj %>% mutate(VAR = VAR1, Date1 = (1:n())) %>%  filter(VAR == 1) %>% dplyr::select(Date1)
+
+VAR2 <- ifelse(sales10adj[,2] < quantile(sales10adj[,2], 0.99), 0, 1)
+date.p2 <- sales10adj %>% mutate(VAR = VAR2, Date2 = (1:n())) %>%  filter(VAR == 1) %>% dplyr::select(Date2)
+
+VAR3 <- ifelse(sales10adj[,3] < quantile(sales10adj[,3], 0.99), 0, 1)
+date.p3 <- sales10adj %>% mutate(VAR = VAR3, Date3 = (1:n())) %>%  filter(VAR == 1) %>% dplyr::select(Date3)
+
+VAR4 <- ifelse(sales10adj[,4] < quantile(sales10adj[,4], 0.99), 0, 1)
+date.p4 <- sales10adj %>% mutate(VAR = VAR4, Date4 = (1:n())) %>%  filter(VAR == 1) %>% dplyr::select(Date4)
+
+VAR5 <- ifelse(sales10adj[,5] < quantile(sales10adj[,5], 0.99), 0, 1)
+date.p5 <- sales10adj %>% mutate(VAR = VAR5, Date5 = (1:n())) %>%  filter(VAR == 1) %>% dplyr::select(Date5)
+
+VAR6 <- ifelse(sales10adj[,6] < quantile(sales10adj[,6], 0.99), 0, 1)
+date.p6 <- sales10adj %>% mutate(VAR = VAR6, Date6 = (1:n())) %>%  filter(VAR == 1) %>% dplyr::select(Date6)
+
+VAR7 <- ifelse(sales10adj[,7] < quantile(sales10adj[,7], 0.99), 0, 1)
+date.p7 <- sales10adj %>% mutate(VAR = VAR7, Date7 = (1:n())) %>%  filter(VAR == 1) %>% dplyr::select(Date7)
+
+VAR8 <- ifelse(sales10adj[,8] < quantile(sales10adj[,8], 0.99), 0, 1)
+date.p8 <- sales10adj %>% mutate(VAR = VAR8, Date8 = (1:n())) %>%  filter(VAR == 1) %>% dplyr::select(Date8)
+
+VAR9 <- ifelse(sales10adj[,9] < quantile(sales10adj[,9], 0.99), 0, 1)
+date.p9 <- sales10adj %>% mutate(VAR = VAR9, Date9 = (1:n())) %>%  filter(VAR == 1) %>% dplyr::select(Date9)
+
+VAR10 <- ifelse(sales10adj[,10] < quantile(sales10adj[,10], 0.99), 0, 1)
+date.p10 <- sales10adj %>% mutate(VAR = VAR10, Date10 = (1:n())) %>%  filter(VAR == 1) %>% dplyr::select(Date10)
+
+dates <- cbind(date.p1, date.p2, date.p3, date.p4, date.p5, date.p6, date.p7, date.p8, date.p9, date.p10)
+
+dates
+
+# plot(sales10adj$Product_1[1:1500], type = "l", col = "white", main = "Daily Sales",xlab = "Day", ylab = "Daily sales (unit)") +
+# abline(v = dates$Date1, col = "red") +
+# abline(v = dates$Date2, col = "green") +
+# abline(v = dates$Date3, col = "purple") +
+# abline(v = dates$Date4, col = "orange") +
+# abline(v = dates$Date5, col = "pink") +
+# abline(v = dates$Date6, col = "yellow") +
+# abline(v = dates$Date7, col = "brown") +
+# abline(v = dates$Date8, col = "grey") +
+# abline(v = dates$Date9, col = "black") +
+# abline(v = dates$Date10, col = "blue")
+
+```
+
+We can see that especially for the dates of products 2 and 3 we have some repetitions of the same values, also for products 8 and 7 it looks like there is some similitudes or closeness of the values. 
+
+The other method we can use is to create the chi plot for all the couples of products to assess the distributions of their tails and see if there is any correlation. 
+
+```{r chi plots}
+
+tvec <- c("p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10")
+
+for(i in 1:9){
+  n <- sales10adj[, c(i,(i+1))]
+  chiplot(n, which = 1, main1 = substitute(paste('p1', a), list(a = tvec[i])))
+  }
+
+for(i in 1:8){
+  n <- sales10adj[, c(i,(i+2))]
+  chiplot(n, which = 1, main1 = substitute(paste('p2', a), list(a = tvec[i+1])))
+}
+
+for(i in 1:7){
+  n <- sales10adj[, c(i,(i+3))]
+  chiplot(n, which = 1, main1 = substitute(paste('p3', a), list(a = tvec[i+2])))
+}
+
+for(i in 1:6){
+  n <- sales10adj[, c(i,(i+4))]
+  chiplot(n, which = 1, main1 = substitute(paste('p4', a), list(a = tvec[i+3])))
+}
+
+for(i in 1:5){
+  n <- sales10adj[, c(i,(i+5))]
+  chiplot(n, which = 1, main1 = substitute(paste('p5', a), list(a = tvec[i+4])))
+}
+
+for(i in 1:4){
+  n <- sales10adj[, c(i,(i+6))]
+  chiplot(n, which = 1, main1 = substitute(paste('p6', a), list(a = tvec[i+5])))
+  }
+
+for(i in 1:3){
+  n <- sales10adj[, c(i,(i+7))]
+  chiplot(n, which = 1, main1 = substitute(paste('p7', a), list(a = tvec[i+6])))
+  }
+
+for(i in 1:2){
+  n <- sales10adj[, c(i,(i+8))]
+  chiplot(n, which = 1, main1 = substitute(paste('p8', a), list(a = tvec[i+7])))
+}
+
+for(i in 1:1){
+  n <- sales10adj[, c(i,(i+9))]
+  chiplot(n, which = 1, main1 = substitute(paste('p9', a), list(a = tvec[i+8])))
+}
+
+```
+
+We can see that in the highest quantiles we have a straight line for the majority of products, only for a couple of them (like p1p3 and p5p6), there seems to be a line that is not centered around zero, but to a higher value, meaning that there could be some correlation among them, which could be a problem.
+
+While for the mathematical method, we will construct a matrix containing the chi bar values for all the couples of products. 
+
+```{r Kable of tail dependance}
+
+# Computing the matrix of chibar values (evaluating the tail dependances among products)
+P1<- list(TaildepP1P2 = taildep(sales10adj$Product_1, sales10adj$Product_2, 0.95,type = c("chibar"), na.rm = FALSE), 
+         TaildepP1P3 = taildep(sales10adj$Product_1, sales10adj$Product_3, 0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP1P4 = taildep(sales10adj$Product_1, sales10adj$Product_4, 0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP1P5 = taildep(sales10adj$Product_1, sales10adj$Product_5, 0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP1P6 = taildep(sales10adj$Product_1, sales10adj$Product_6, 0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP1P7 = taildep(sales10adj$Product_1, sales10adj$Product_7, 0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP1P8 = taildep(sales10adj$Product_1, sales10adj$Product_8, 0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP1P9 = taildep(sales10adj$Product_1, sales10adj$Product_9, 0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP1P10 = taildep(sales10adj$Product_1, sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+
+P2<- list(TaildepP2P3 = 0,
+          TaildepP2P3 =taildep(sales10adj$Product_2,sales10adj$Product_3,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP2P4 =taildep(sales10adj$Product_2,sales10adj$Product_4,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP2P5 =taildep(sales10adj$Product_2,sales10adj$Product_5,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP2P6 =taildep(sales10adj$Product_2,sales10adj$Product_6,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP2P7 =taildep(sales10adj$Product_2,sales10adj$Product_7,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP2P8 =taildep(sales10adj$Product_2,sales10adj$Product_8,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP2P9 =taildep(sales10adj$Product_2,sales10adj$Product_9,0.95,type = c("chibar"), na.rm = FALSE),
+         TaildepP2P10 =taildep(sales10adj$Product_2,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+
+P3 <-list(Taildep = 0,
+          Taildep = 0,
+          TaildepP4P4 =taildep(sales10adj$Product_3,sales10adj$Product_4,0.95,type = c("chibar"), na.rm = FALSE),
+            TaildepP4P5 =taildep(sales10adj$Product_3,sales10adj$Product_5,0.95,type = c("chibar"), na.rm = FALSE),
+            TaildepP4P6 =taildep(sales10adj$Product_3,sales10adj$Product_6,0.95,type = c("chibar"), na.rm = FALSE),
+            TaildepP4P7 =taildep(sales10adj$Product_3,sales10adj$Product_7,0.95,type = c("chibar"), na.rm = FALSE),
+            TaildepP4P8 =taildep(sales10adj$Product_3,sales10adj$Product_8,0.95,type = c("chibar"), na.rm = FALSE),
+            TaildepP4P9 =taildep(sales10adj$Product_3,sales10adj$Product_9,0.95,type = c("chibar"), na.rm = FALSE),
+            TaildepP4P10 =taildep(sales10adj$Product_3,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+
+P4 <-list(Taildep = 0,
+          Taildep = 0,
+          Taildep = 0,
+          TaildepP4P5 =taildep(sales10adj$Product_4,sales10adj$Product_5,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P6 =taildep(sales10adj$Product_4,sales10adj$Product_6,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P7 =taildep(sales10adj$Product_4,sales10adj$Product_7,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P8 =taildep(sales10adj$Product_4,sales10adj$Product_8,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P9 =taildep(sales10adj$Product_4,sales10adj$Product_9,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P10 =taildep(sales10adj$Product_4,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+
+P5 <-list(Taildep = 0,
+          Taildep = 0,
+          Taildep = 0,
+          Taildep=  0,
+          TaildepP4P6 =taildep(sales10adj$Product_5,sales10adj$Product_6,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P7 =taildep(sales10adj$Product_5,sales10adj$Product_7,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P8 =taildep(sales10adj$Product_5,sales10adj$Product_8,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P9 =taildep(sales10adj$Product_5,sales10adj$Product_9,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P10 =taildep(sales10adj$Product_5,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+
+P6 <-list(Taildep = 0,
+          Taildep = 0,
+          Taildep = 0,
+          Taildep=  0,
+          Taildep=  0,
+          TaildepP4P7 =taildep(sales10adj$Product_6,sales10adj$Product_7,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P8 =taildep(sales10adj$Product_6,sales10adj$Product_8,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P9 =taildep(sales10adj$Product_6,sales10adj$Product_9,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P10 =taildep(sales10adj$Product_6,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+
+P7 <-list(Taildep = 0,
+          Taildep = 0,
+          Taildep = 0,
+          Taildep=  0,
+          Taildep=  0,
+          Taildep=  0,
+          TaildepP4P8 =taildep(sales10adj$Product_7,sales10adj$Product_8,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P9 =taildep(sales10adj$Product_7,sales10adj$Product_9,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P10 =taildep(sales10adj$Product_7,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+
+P8 <-list(Taildep = 0,
+          Taildep = 0,
+          Taildep = 0,
+          Taildep=  0,
+          Taildep=  0,          
+          Taildep=  0,
+          Taildep=  0,
+          TaildepP4P9 =taildep(sales10adj$Product_8,sales10adj$Product_9,0.95,type = c("chibar"), na.rm = FALSE),
+          TaildepP4P10 =taildep(sales10adj$Product_8,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+
+P9 <-list(Taildep = 0,
+          Taildep = 0,
+          Taildep = 0,
+          Taildep=  0,
+          Taildep=  0,          
+          Taildep=  0,
+          Taildep=  0,
+          Taildep=  0,
+          TaildepP4P10 =taildep(sales10adj$Product_9,sales10adj$Product_10,0.95,type = c("chibar"), na.rm = FALSE))
+
+pp<- as.data.frame(rbind(unlist(P1),unlist(P2),unlist(P3),unlist(P4),unlist(P5),unlist(P6),unlist(P7),unlist(P8),unlist(P9)))
+
+colnames(pp) <- c("p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10") 
+rownames(pp) <- c("p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9") 
+
+pp %>% kable() %>% kable_styling()
+
+```
+
+We can see that the highest values appear to be for products 2 with product 3 and 4, product 1 with product 5 and 6, product 3 with 4, products 5 with 6. This is very much in line with we have found in the chi plot that we created above. 
+
+To investigate a possible clustering of the different products, we will create a graph with the mean and variance for each product. 
+
+```{r, fig.width=10}
+
+var.sales10adj <- diag(var(sales10adj))    # compute variance
+mean.sales10adj <-apply(sales10adj, 2, mean)   # compute mean
+plot(var.sales10adj ~ mean.sales10adj,
+     main = "Similarity between variables", 
+     xlab = "Mean value per product", 
+     ylab = "Variance per product",
+     xlim = c(-0.005,0.007),
+     ylim = c(0, 1700))
+     text(var.sales10adj ~ mean.sales10adj, labels=c("p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10"),data=sales10adj, pos=3, offset=0.3, cex=1, font=1)
+     
+```
+
+```{r, fig.width=10}
+
+sales1 <- sales10adj %>% mutate(VAR = VAR1) %>%  filter(VAR == 1) %>% dplyr::select(Product_1)
+sales2 <- sales10adj %>% mutate(VAR = VAR2) %>%  filter(VAR == 1) %>% dplyr::select(Product_2)
+sales3 <- sales10adj %>% mutate(VAR = VAR3) %>%  filter(VAR == 1) %>% dplyr::select(Product_3)
+sales4 <- sales10adj %>% mutate(VAR = VAR4) %>%  filter(VAR == 1) %>% dplyr::select(Product_4)
+sales5 <- sales10adj %>% mutate(VAR = VAR5) %>%  filter(VAR == 1) %>% dplyr::select(Product_5)
+sales6 <- sales10adj %>% mutate(VAR = VAR6) %>%  filter(VAR == 1) %>% dplyr::select(Product_6)
+sales7 <- sales10adj %>% mutate(VAR = VAR7) %>%  filter(VAR == 1) %>% dplyr::select(Product_7)
+sales8 <- sales10adj %>% mutate(VAR = VAR8) %>%  filter(VAR == 1) %>% dplyr::select(Product_8)
+sales9 <- sales10adj %>% mutate(VAR = VAR9) %>%  filter(VAR == 1) %>% dplyr::select(Product_9)
+sales10 <- sales10adj %>% mutate(VAR = VAR10) %>%  filter(VAR == 1) %>% dplyr::select(Product_10)
+
+saleshigh <- cbind(sales1, sales2, sales3, sales4, sales5, sales6, sales7, sales8, sales9, sales10)
+
+var.saleshigh <- diag(var(saleshigh))    # compute variance
+mean.saleshigh <-apply(saleshigh, 2, mean)   # compute mean
+plot(var.saleshigh ~ mean.saleshigh,
+     main = "Similarity between variables", 
+     xlab = "Mean value per product", 
+     ylab = "Variance per product")
+     text(var.saleshigh ~ mean.saleshigh, labels=c("p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10"),data=saleshigh, pos=3, offset=0.3, cex=1, font=1)
+     
+```
+
+### Identify groups of related products 
+
+```{r, echo=FALSE}
+
+#Data Adjust transposed
+
+sales10adj_1<-as.data.frame(rbind(sales10adj$Product_1, sales10adj$Product_2,
+                                          sales10adj$Product_3, sales10adj$Product_4,
+                                          sales10adj$Product_5, sales10adj$Product_6,
+                                          sales10adj$Product_7, sales10adj$Product_8,
+                                          sales10adj$Product_9, sales10adj$Product_10))
+
+#scale the data
+sales10adj_1<-scale(sales10adj_1)
+
+#Distance
+distance<- factoextra::get_dist(sales10adj_1,
+                                method = "kendall")
+#Correlation
+#factoextra::fviz_dist(distance) #correlation
+
+#Defining the k
+
+factoextra::fviz_nbclust(sales10adj_1,
+                         kmeans,
+                         method = "wss",       #for total within sum of square--> "wss"
+                         k.max = 8,
+                         diss = distance,      #kendall distance
+                         nstart = 50)    + 
+       geom_vline(xintercept = 3, color="red")+
+  labs(subtitle = "The elbow begins to stabilize from cluster 3")+
+  theme(plot.subtitle=element_text(face="italic"))+
+  theme(plot.title=element_text(size=14, hjust=0.5, face="bold"))
+
+```
+
+
+
+```{r, echo=FALSE}
+
+cluster_k3 <- kmeans(sales10adj_1, 3 , nstart = 25)
+
+g1<-factoextra::fviz_cluster(cluster_k3, data = sales10adj_1, show.clust.cent = TRUE,
+             star.plot = TRUE, repel = TRUE) +
+      ggplot2::labs(title = "Clustering our 10 products by their Kendall's tau distance values)") +
+      ggplot2::theme_bw() +
+    ggplot2::theme(legend.position = "bottom")+
+    ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5))
+  
+
+
+######now for the extreme values###################
+
+####create the data frame
+
+q95<- as.data.frame(apply(sales10adj, 2, quantile, 0.95))
+
+library(dplyr)
+
+
+Product_1<- sales10adj%>%
+                  dplyr::filter(sales10adj$Product_1 >= q95[1,1])%>%
+                  dplyr::select(Product_1)
+
+Product_2<- sales10adj%>%
+                  filter(sales10adj$Product_2 >= q95[2,1])%>%
+                  dplyr::select(Product_2)
+
+Product_3<- sales10adj%>%
+                  filter(sales10adj$Product_3 >= q95[3,1])%>%
+                  dplyr::select(Product_3)
+
+Product_4<- sales10adj%>%
+                  filter(sales10adj$Product_4 >= q95[4,1])%>%
+                  dplyr::select(Product_4)
+
+Product_5<- sales10adj%>%
+                  filter(sales10adj$Product_5 >= q95[5,1])%>%
+                  dplyr::select(Product_5)
+
+Product_6<- sales10adj%>%
+                  filter(sales10adj$Product_6 >= q95[6,1])%>%
+                  dplyr::select(Product_6)
+
+Product_7<- sales10adj%>%
+                  filter(sales10adj$Product_7 >= q95[7,1])%>%
+                  dplyr::select(Product_7)
+
+Product_8<- sales10adj%>%
+                  filter(sales10adj$Product_8 >= q95[8,1])%>%
+                  dplyr::select(Product_8)
+
+Product_9<- sales10adj%>%
+                  filter(sales10adj$Product_9 >= q95[9,1])%>%
+                  dplyr::select(Product_9)
+
+Product_10<- sales10adj%>%
+                  filter(sales10adj$Product_10 >= q95[10,1])%>%
+                  dplyr::select(Product_10)
+
+sales10adj_2<- data.frame(Product_1, Product_2, Product_3,
+                          Product_4, Product_5, Product_6,
+                          Product_7, Product_8, Product_9,
+                          Product_10)
+
+
+sales10adj_2<-as.data.frame(rbind(sales10adj_2$Product_1, sales10adj_2$Product_2,
+                                          sales10adj_2$Product_3, sales10adj_2$Product_4,
+                                          sales10adj_2$Product_5, sales10adj_2$Product_6,
+                                          sales10adj_2$Product_7, sales10adj_2$Product_8,
+                                          sales10adj_2$Product_9, sales10adj_2$Product_10))
+
+##########cluster extreme
+
+sales10adj_2<-scale(sales10adj_2)
+
+distance<- factoextra::get_dist(sales10adj_2, 
+                                method = "kendall")
+
+factoextra::fviz_dist(distance) #correlation
+factoextra::fviz_nbclust(sales10adj_2, 
+                         kmeans, 
+                         method = "wss",       #for total within sum of square--> "wss"
+                         k.max = 8, 
+                         diss = distance, #kendall distance
+                         nstart = 50)      
+
+cluster_k3_2 <- kmeans(sales10adj_2, 3 , nstart = 25)
+
+g2<- factoextra::fviz_cluster(cluster_k3_2, data = sales10adj_2, show.clust.cent = TRUE,
+             star.plot = TRUE, repel = TRUE) +
+      ggplot2::labs(title = "Clustering of the extreme values of our 10 products") +
+      ggplot2::theme_bw() +
+      ggplot2::theme(legend.position = "bottom")+
+      ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5))
+
+gridExtra::grid.arrange(g1, g2, ncol = 1)
+
+```
+
+
+What is interesting to notice, is that the clustering are the same if we consdier the whole distribution and only the most extreme values. 
+In both cases, we can see that there is some similarity in some products, and some differences in others, especially product 1 appreas to be very different from the others, while products 9, 10 7, 8, 4, 3 and 2 appear very similar (the cluster in green). However, the number of clusters that should be used is not very clear, as the decrease of total within sum of sqaure is quite linear. 
+
+> (c) In view of your answer to (b), would you apply a Gaussian copula model to these data?
+
+
+As well as the EVT the Gaussian model does not caputre all the information for the extreme values. Keeping this concept for multivariate extreme value theory we can see that for the extreme values the corelation is higher, thus we cannot apply this model to fit the extreme value of the products' distribution. 
+As we could find some depence in the distribution of the tails of our products' demand, we believe that a gaussian distribution would not be optimal, as it is not able to consider the depences in the tails of the distribution.
+
+> (d) (Hard) Fit a multivariate model to the adjusted sales data and estimate the 95% Demand at Risk for the sum:
+$$S = X^{(1)} + X^{(2)} + ... + X^{(10)}$$
+You can do so with the following steps: 
+
+```{r}
+
+# These functions can be used to transform data to uniform scale,
+# when the data are analysed separately below and above a threshold
+# e.g. applying the GPD to values above a high threshold and treating
+#      those below the threshold with the empirical CDF.
+
+transform_to_uniform <- function(y,
+                                 cdf,
+                                 threshold,
+                                 ...) {
+  # ...: arguments to `cdf`
+  
+  
+  above <- y > threshold
+  # proportion of exceedances
+  p <- mean(above)
+  # under the threshold, use the empirical CDF
+  # see ?ecdf
+  ecdf_below <- ecdf(y[!above])
+  empirical <- ecdf_below(y[!above])
+  # above, apply cdf
+  theoretical <- cdf(y[above], mean.sales10adj)
+  
+  transformed <- numeric(length = length(y))
+  # "Glue together" the empirical and theoretical parts by rescaling them:
+  
+  #        empirical          e.g. N(0,1)
+  # [-----------------------|-------------]
+  # 0                      1-p            1
+  
+  transformed[!above] <- (1 - p) * empirical    # (1)
+  transformed[above] <- 1 - p + p * theoretical # (2)
+  
+  return(list(
+    transformed = transformed,
+    ecdf = ecdf_below,
+    prop = p
+  ))
+}
+
+inverse_transform <- function(u, ecdf, quantile_function, p, ...) {
+  # ...: arguments to quantile_function
+  # Basically, undo the transformations (1-2) above
+  above <- u > 1 - p
+  original_scale <- numeric(length = length(u))
+  original_scale[!above] <- quantile(ecdf, u[!above] / (1 - p))
+  original_scale[above] <-
+    quantile_function((u[above] - (1 - p)) / p, ...)
+  return(original_scale)
+}
+
+```
+
+i. Transform the sales for each product to a uniform scale, that is, compute 
+$$F_i(X^{(i)})$$
+for each X in 1, ..., n being each of the product sales and F being the estimated Extreme Value distributions.
+
+
+```{r}
+
+y1 <- rpois(1000, mean.sales10adj[1])
+th1 <- qpois(0.95, mean.sales10adj[1])
+unif1 <- transform_to_uniform(y1, ppois, th1)
+
+y2 <- rpois(1000, mean.sales10adj[2])
+th2 <- qpois(0.95, mean.sales10adj[2])
+unif2 <- transform_to_uniform(y2, ppois, th2)
+
+y3 <- rpois(1000, mean.sales10adj[3])
+th3 <- qpois(0.95, mean.sales10adj[3])
+unif3 <- transform_to_uniform(y3, ppois, th3)
+
+y4 <- rpois(1000, mean.sales10adj[4])
+th4 <- qpois(0.95, mean.sales10adj[4])
+unif4 <- transform_to_uniform(y4, ppois, th4)
+
+y5 <- rpois(1000, mean.sales10adj[5])
+th5 <- qpois(0.95, mean.sales10adj[5])
+unif5 <- transform_to_uniform(y5, ppois, th5)
+
+y6 <- rpois(1000, mean.sales10adj[6])
+th6 <- qpois(0.95, mean.sales10adj[6])
+unif6 <- transform_to_uniform(y6, ppois, th6)
+
+y7 <- rpois(1000, mean.sales10adj[7])
+th7 <- qpois(0.95, mean.sales10adj[7])
+unif7 <- transform_to_uniform(y7, ppois, th7)
+
+y8 <- rpois(1000, mean.sales10adj[8])
+th8 <- qpois(0.95, mean.sales10adj[8])
+unif8 <- transform_to_uniform(y8, ppois, th8)
+
+y9 <- rpois(1000, mean.sales10adj[9])
+th9 <- qpois(0.95, mean.sales10adj[9])
+unif9 <- transform_to_uniform(y9, ppois, th9)
+
+y10 <- rpois(1000, mean.sales10adj[10])
+th10 <- qpois(0.95, mean.sales10adj[10])
+unif10 <- transform_to_uniform(y10, ppois, th10)
+
+```
+
+
+ii. Fit a multivariate copula of your choice using the `copula::fitCopula` function.
+```{r}
+library(copula)
+
+unif <- cbind(unif1$transformed, unif2$transformed, unif3$transformed, unif4$transformed, unif5$transformed, unif6$transformed, unif7$transformed, unif8$transformed, unif9$transformed, unif10$transformed)
+
+gum.fit <- gumbelCopula(5, dim=10)
+clay.fit <- claytonCopula(4, dim=10)
+
+fit.gum <- fitCopula(gum.fit, method = "itau", data=unif)
+AIC.gum <- 2*length(attributes(fit.gum)$estimate) - 2*attributes(fit.gum)$loglik
+fit.clay <- fitCopula(clay.fit,  method = "ml", unif)
+AIC.clay <- 2*length(attributes(fit.clay)$estimate) - 2*attributes(fit.clay)$loglik
+fit.norm <- fitCopula(normalCopula(), u)
+AIC.norm <- 2*length(attributes(fit.norm)$estimate) - 2*attributes(fit.norm)$loglik
+```
+
+iii. Simulate from your fitted copula and transform the values back to their original scales (i.e. undo the transformation in i.)
+```{r}
+library(copula)
+tc <- tCopula(dim = 10, dispstr = "un", df = 4, df.fixed = FALSE, df.min = 0.01)  # create a Student t copula to enter in the function copula
+vv <-fitCopula(tc, pob)     # use the function to fit the Student copula to the data
+vv
+```
+
+iv. Compute the simulated values of S and their 95% Value at Risk.
+```{r}
+library(copula)
+tc <- tCopula(dim = 10, dispstr = "un", df = 4, df.fixed = FALSE, df.min = 0.01)  # create a Student t copula to enter in the function copula
+vv <-fitCopula(tc, pob)     # use the function to fit the Student copula to the data
+vv
+```
+
