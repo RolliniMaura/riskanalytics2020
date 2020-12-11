@@ -1,9 +1,10 @@
 ---
 title: "Practical 1"
-output:
-  pdf_document: default
-  html_document: default
+output: 
+  html_document:
+    css: style.css
 ---
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)

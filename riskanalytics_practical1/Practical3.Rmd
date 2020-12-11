@@ -633,9 +633,7 @@ As we could find some depence in the distribution of the tails of our products' 
 
 $$S = X^{(1)} + X^{(2)} + ... + X^{(10)}$$
 
-You can do so with the following steps: 
-
-```{r}
+```{r, message=FALSE, warning=FALSE}
 
 # These functions can be used to transform data to uniform scale,
 # when the data are analysed separately below and above a threshold
@@ -689,58 +687,63 @@ inverse_transform <- function(u, ecdf, quantile_function, p, ...) {
 
 ```
 
+
 i. Transform the sales for each product to a uniform scale, that is, compute 
+
 $$F_i(X^{(i)})$$
+
 for each X in 1, ..., n being each of the product sales and F being the estimated Extreme Value distributions.
 
 
-```{r}
 
-y1 <- rpois(1000, mean.sales10adj[1])
+```{r, warning=FALSE, message=FALSE}
+
+y1 <- sales10adj$Product_1
 th1 <- qpois(0.95, mean.sales10adj[1])
 unif1 <- transform_to_uniform(y1, ppois, th1)
 
-y2 <- rpois(1000, mean.sales10adj[2])
+y2 <- sales10adj$Product_2
 th2 <- qpois(0.95, mean.sales10adj[2])
 unif2 <- transform_to_uniform(y2, ppois, th2)
 
-y3 <- rpois(1000, mean.sales10adj[3])
+y3 <- sales10adj$Product_3
 th3 <- qpois(0.95, mean.sales10adj[3])
 unif3 <- transform_to_uniform(y3, ppois, th3)
 
-y4 <- rpois(1000, mean.sales10adj[4])
+y4 <- sales10adj$Product_4
 th4 <- qpois(0.95, mean.sales10adj[4])
 unif4 <- transform_to_uniform(y4, ppois, th4)
 
-y5 <- rpois(1000, mean.sales10adj[5])
+y5 <- sales10adj$Product_5
 th5 <- qpois(0.95, mean.sales10adj[5])
 unif5 <- transform_to_uniform(y5, ppois, th5)
 
-y6 <- rpois(1000, mean.sales10adj[6])
+y6 <- sales10adj$Product_6
 th6 <- qpois(0.95, mean.sales10adj[6])
 unif6 <- transform_to_uniform(y6, ppois, th6)
 
-y7 <- rpois(1000, mean.sales10adj[7])
+y7 <- sales10adj$Product_7
 th7 <- qpois(0.95, mean.sales10adj[7])
 unif7 <- transform_to_uniform(y7, ppois, th7)
 
-y8 <- rpois(1000, mean.sales10adj[8])
+y8 <- sales10adj$Product_8
 th8 <- qpois(0.95, mean.sales10adj[8])
 unif8 <- transform_to_uniform(y8, ppois, th8)
 
-y9 <- rpois(1000, mean.sales10adj[9])
+y9 <- sales10adj$Product_9
 th9 <- qpois(0.95, mean.sales10adj[9])
 unif9 <- transform_to_uniform(y9, ppois, th9)
 
-y10 <- rpois(1000, mean.sales10adj[10])
+y10 <- sales10adj$Product_10
 th10 <- qpois(0.95, mean.sales10adj[10])
 unif10 <- transform_to_uniform(y10, ppois, th10)
 
+
 ```
 
-
 ii. Fit a multivariate copula of your choice using the `copula::fitCopula` function.
-```{r}
+
+```{r, warning=FALSE, message=FALSE}
 library(copula)
 
 unif <- cbind(unif1$transformed, unif2$transformed, unif3$transformed, unif4$transformed, unif5$transformed, unif6$transformed, unif7$transformed, unif8$transformed, unif9$transformed, unif10$transformed)
@@ -749,25 +752,116 @@ gum.fit <- gumbelCopula(5, dim=10)
 clay.fit <- claytonCopula(4, dim=10)
 
 fit.gum <- fitCopula(gum.fit, method = "itau", data=unif)
-AIC.gum <- 2*length(attributes(fit.gum)$estimate) - 2*attributes(fit.gum)$loglik
-fit.clay <- fitCopula(clay.fit,  method = "ml", unif)
-AIC.clay <- 2*length(attributes(fit.clay)$estimate) - 2*attributes(fit.clay)$loglik
-fit.norm <- fitCopula(normalCopula(), u)
-AIC.norm <- 2*length(attributes(fit.norm)$estimate) - 2*attributes(fit.norm)$loglik
+summary(fit.gum)
+
 ```
 
 iii. Simulate from your fitted copula and transform the values back to their original scales (i.e. undo the transformation in i.)
-```{r}
+
+```{r, warning=FALSE, message=FALSE}
 library(copula)
-tc <- tCopula(dim = 10, dispstr = "un", df = 4, df.fixed = FALSE, df.min = 0.01)  # create a Student t copula to enter in the function copula
-vv <-fitCopula(tc, pob)     # use the function to fit the Student copula to the data
-vv
+sim.gum <- rCopula(copula = gumbelCopula(1.047, 10), n = 1000)
+
+inverse_transform <- function(u, ecdf, quantile_function, p, ...) {
+  # ...: arguments to quantile_function
+  # Basically, undo the transformations (1-2) above
+  above <- u > 1 - p
+  original_scale <- numeric(length = length(u))
+  original_scale[!above] <- quantile(ecdf, u[!above] / (1 - p))
+  original_scale[above] <-
+    quantile_function((u[above] - (1 - p)) / p, mean.sales10adj)
+  return(original_scale)
+}
+
+inverse_transform(sim.gum, qpois, p)
+
+
+rev1 <-  with(unif1, inverse_transform(sim.gum[,1], ecdf, qnorm, p = prop))
+rev2 <-  with(unif2, inverse_transform(sim.gum[,2], ecdf, qnorm, p = prop))
+rev3 <-  with(unif3, inverse_transform(sim.gum[,3], ecdf, qnorm, p = prop))
+rev4 <-  with(unif4, inverse_transform(sim.gum[,4], ecdf, qnorm, p = prop))
+rev5 <-  with(unif5, inverse_transform(sim.gum[,5], ecdf, qnorm, p = prop))
+rev6 <-  with(unif6, inverse_transform(sim.gum[,6], ecdf, qnorm, p = prop))
+rev7 <-  with(unif7, inverse_transform(sim.gum[,7], ecdf, qnorm, p = prop))
+rev8 <-  with(unif8, inverse_transform(sim.gum[,8], ecdf, qnorm, p = prop))
+rev9 <-  with(unif9, inverse_transform(sim.gum[,9], ecdf, qnorm, p = prop))
+rev10 <-  with(unif10, inverse_transform(sim.gum[,10], ecdf, qnorm, p = prop))
+
+plot(sales10adj[1:1000,1], rev1)
+plot(sales10adj[1:1000,2], rev2)
+plot(sales10adj[1:1000,3], rev3)
+plot(sales10adj[1:1000,4], rev4)
+plot(sales10adj[1:1000,5], rev5)
+plot(sales10adj[1:1000,6], rev6)
+plot(sales10adj[1:1000,7], rev7)
+plot(sales10adj[1:1000,8], rev8)
+plot(sales10adj[1:1000,9], rev9)
+plot(sales10adj[1:1000,10], rev10)
+
 ```
 
+
 iv. Compute the simulated values of S and their 95% Value at Risk.
-```{r}
-library(copula)
-tc <- tCopula(dim = 10, dispstr = "un", df = 4, df.fixed = FALSE, df.min = 0.01)  # create a Student t copula to enter in the function copula
-vv <-fitCopula(tc, pob)     # use the function to fit the Student copula to the data
-vv
+
+```{r, warning=FALSE, message=FALSE}
+
+plot(rev1, type = "l")
+plot(rev2, type = "l")
+plot(rev3, type = "l")
+plot(rev4, type = "l")
+plot(rev5, type = "l")
+plot(rev6, type = "l")
+plot(rev7, type = "l")
+plot(rev8, type = "l")
+plot(rev9, type = "l")
+plot(rev10, type = "l")
+  
+q95p1 <- quantile(rev1, 0.95)
+VAR1 <- as.data.frame(rev1) %>%
+                  dplyr::filter(rev1 >= q95p1)
+
+q95p2 <- quantile(rev2, 0.95)
+VAR2 <- as.data.frame(rev2) %>%
+                  dplyr::filter(rev2 >= q95p2)
+
+q95p3 <- quantile(rev3, 0.95)
+VAR3 <- as.data.frame(rev3) %>%
+                  dplyr::filter(rev3 >= q95p3)
+
+q95p4 <- quantile(rev4, 0.95)
+VAR4 <- as.data.frame(rev4) %>%
+                  dplyr::filter(rev4 >= q95p4)
+
+q95p5 <- quantile(rev5, 0.95)
+VAR5 <- as.data.frame(rev5) %>%
+                  dplyr::filter(rev5 >= q95p5)
+
+q95p6 <- quantile(rev6, 0.95)
+VAR6 <- as.data.frame(rev6) %>%
+                  dplyr::filter(rev6 >= q95p6)
+
+q95p7 <- quantile(rev7, 0.95)
+VAR7 <- as.data.frame(rev7) %>%
+                  dplyr::filter(rev7 >= q95p7)
+
+q95p8 <- quantile(rev8, 0.95)
+VAR8 <- as.data.frame(rev8) %>%
+                  dplyr::filter(rev8 >= q95p8)
+
+q95p9 <- quantile(rev9, 0.95)
+VAR9 <- as.data.frame(rev9) %>%
+                  dplyr::filter(rev9 >= q95p9)
+
+q95p10 <- quantile(rev10, 0.95)
+VAR10 <- as.data.frame(rev10) %>%
+                  dplyr::filter(rev10 >= q95p10)
+str(VAR10)
+
+VAR <- cbind(VAR1, VAR2, VAR3, VAR4, VAR5, VAR6, VAR7, VAR8, VAR9, VAR10) 
+
+kableExtra::kable(VAR , 
+                  caption = "Extreme Values Data frame")%>%
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+
 ```
