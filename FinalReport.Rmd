@@ -1,0 +1,57 @@
+---
+title: "Final Report"
+subtitle: "Risk Analytics 2020-2021"
+author: "Maura Rollini, Andrea Jungo, Eugénie Mathieu"
+date: "2020-04-12"
+output: 
+  bookdown::html_document2:
+    toc: true
+    toc_float: true
+    number_sections: false
+    toc_depth: 3
+    theme: readable
+    css: style.css
+    includes:
+      in_header: header.html
+---
+
+```{r include=FALSE}
+#load libraries
+library(knitr)
+```
+
+```{r include=FALSE}
+
+#set some options for the chunks
+
+knitr::opts_chunk$set(
+  fig.align = 'center',
+  fig.topcaption=TRUE
+)
+
+```
+
+```{r htmlTemplate, echo=FALSE}
+# Create the external file
+img <- htmltools::img(src = knitr::image_uri("Logo.png"), 
+               alt = 'logo', 
+               style = 'position:absolute; top:0; right:0; padding:10px; width: 255px; height: 130px')
+
+htmlhead <- paste0('
+<script>
+document.write(\'<div class="logos">',img,'</div>\')
+</script>
+')
+
+readr::write_lines(htmlhead, path = "header.html")
+
+```
+
+```{r message=TRUE, warning=TRUE, child='Practical1.rmd'}
+```
+
+```{r message=TRUE, warning=TRUE, child='Practical2.rmd'}
+```
+
+```{r message=TRUE, warning=TRUE, child='Practical3.Rmd'}
+```

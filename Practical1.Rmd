@@ -1,0 +1,551 @@
+---
+title: "Practical 1"
+output: 
+  html_document:
+    css: style.css
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Practical 1
+
+In this practical, we will analyse data pertaining to customer waiting times in a governmental office. The data provided to us is the $waiting.csv$ file are daily average waiting times from *January 3, 2017* to *October 26, 2018.*
+
+Our goal is to model and monitor the time customers spend waiting, and to take action if the service quality deteriorates too badly, i.e. if waiting times are unacceptably high.
+
+## Exercise A {.tabset .tabset-fade .tabset-pills}
+
+> Read in the data and plot the daily waiting times. Compute and display the five-number summary (boxplot) of the daily waiting times for each weekday. What do you observe?
+
+### Daily plot {-}
+
+
+```{r, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+library(dplyr)
+library(ggplot2)
+library(broom)
+
+```
+  
+  
+```{r daily-plot, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+#loading the data
+data <- read.csv(here::here("waiting.csv"))
+data$Date<-as.Date(data$Date)
+
+####################option 2 plot
+
+mean_wt <- mean(data$Average.Wait.Seconds )
+
+data %>% 
+  ggplot2::ggplot(aes(Date, Average.Wait.Seconds, group = 1, cex.names=0.1)) + 
+                    geom_line()+
+                    theme_bw()+
+                    scale_x_date(limits = as.Date(c("2017-01-03","2018-10-26"))) +
+                    labs(x = "Date", y = "Average Wait (Seconds)",  
+                         title = "Daily Plot")+
+                    theme(plot.title = element_text(face = "bold", hjust = 0.5)) +
+                    theme(axis.text.x = element_text(angle = 0, hjust = 0.5, size = 8)) +
+                    theme(axis.text.y = element_text(hjust = 0.5, size = 8)) + 
+                    geom_hline(yintercept = mean_wt,
+                               color = "red",
+                               linetype = "solid") + 
+                    theme(plot.subtitle = element_text(face = "italic")) +
+                    labs(subtitle = "Mean is represented as a red solid line at 441 seconds ")
+
+rm(mean_wt)
+
+```
+  
+### Boxplot {-}
+
+<div class = "row">
+<div class = "col-md-6">
+
+```{r , echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+##############################showing the five-number summary of all the data 
+#five-number summary of waiting time per weekday
+
+summary5_weekday<- data %>% 
+                      group_by(Weekday) %>% 
+                      summarise(Min = min(Average.Wait.Seconds),
+                                Q1 = quantile(Average.Wait.Seconds, 0.25), 
+                                Mean = round(mean(Average.Wait.Seconds),0), 
+                                Q3 = quantile(Average.Wait.Seconds, 0.75), 
+                                Max = max(Average.Wait.Seconds))
+
+###########Summary table###############################
+
+kableExtra::kable(summary5_weekday, caption = "Five-number summary by weekday")%>%
+  kableExtra::kable_styling(bootstrap_options = c("striped", full_width = FALSE, position="left")) 
+
+
+```
+</div>
+
+<div class = "col-md-6">
+
+```{r , echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+#changing the order for the labels in the axis x for the boxplot per weekday
+
+data$Weekday <- factor(data$Weekday, levels = c('Monday', 'Tuesday', 'Wednesday',
+                                                'Thursday','Friday' ))
+
+#plotting the boxplot per weekday
+p<-data %>% 
+    ggplot(aes(Weekday, Average.Wait.Seconds, fill = Weekday)) +
+    geom_boxplot()+
+    theme_bw()+
+    labs(x = "Day", y = "Average Wait (Seconds)",  title = "Boxplot by weekday")+
+    theme(plot.title = element_text(face = "bold", hjust = 0.5)) +
+    theme(axis.text.x = element_text(angle = 0, hjust = 0.5, size = 10)) +
+    theme(axis.text.y = element_text(hjust = 0.5, size = 8))
+
+p
+
+
+rm(summary5_weekday, p )
+
+```
+</div>
+</div>
+
+## {.toc-ignore}
+
+
+`Conclusion` : our main observations regarding the charts below are the following:
+
+- The daily plot chart show a continue oscillation of the data during the 447 observations (250 obs in 2017 and 197 in 2018).
+- There are high deviation values regarding the mean for each day.
+- The average waiting time per weekday are similar within them, nevertheless, the highest average is made on friday.
+- The highest waiting time is on wednesday.
+- The extreme values are located in the first 4 weekdays and in general they are higher from 900 seconds.
+
+
+## Exercise B {.tabset .tabset-fade .tabset-pills}
+
+> Using a normal approximation produce an upper control limit or confidence line for the waiting times at the one-year return level. What do you notice? Using a Q-Q plot, comment on whether the Normal model is appropriate.
+
+### Upper Control Limit {-}
+
+```{r ucl, echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+########Assuming that waiting times are normally distributed
+
+#95% CI--> alpha = 0.05 We can get z(alpha/2) = z(0.025) from R:
+nrow<- nrow(data)
+qnorm<- qnorm(.975)   #1.959964
+meanData<- mean(data$Average.Wait.Seconds) #440.6398
+sdData<- sd(data$Average.Wait.Seconds) #206.19
+
+###########Our margin of error is 
+
+upper_control_limit<- mean(data$Average.Wait.Seconds)+
+                            qnorm*(sdData/sqrt(nrow))
+
+```
+  
+### Probability of exceeding{-}
+
+```{r o-y-rl, echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+#If X~N(μ, σ)--> pnorm(x, μ, σ) function to calculate P(X > upperbound).
+# r=1
+
+probability_exceed_UCL<- 1 - pnorm( upper_control_limit, 
+                         meanData, sdData)
+probability_exceed_UCL
+
+```
+
+
+```{r ucl-plot, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+data %>% 
+  ggplot(aes(Date, Average.Wait.Seconds, group = 1, cex.names=0.1)) + 
+  geom_line()+
+  theme_bw()+
+  scale_x_date(limits = as.Date(c("2017-01-03","2018-10-26"))) +
+  labs(x = "Date", y = "Average Wait (Seconds)",  
+       title = "Daily Plot" )+
+  theme(plot.title = element_text(face = "bold", hjust = 0.5)) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5, size = 8)) +
+  theme(axis.text.y = element_text(hjust = 0.5, size = 8)) +
+  geom_hline(aes(yintercept=meanData), 
+             colour="blue", 
+             linetype="solid") +
+  geom_hline(aes(yintercept=upper_control_limit), 
+             colour="red", 
+             linetype="solid") +
+  labs(subtitle = "The UCL is represented as a red solid line at 460 seconds, the mean by the blue line at 441")+
+  theme(plot.subtitle = element_text(face = "italic"))
+
+
+```
+  
+### QQ-Plot {-}
+
+
+```{r qq-plot, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+########################the normal approximation
+
+qqnorm(data$Average.Wait.Seconds, pch = 1, frame = FALSE, 
+       main = "Q-Q plot")
+qqline(data$Average.Wait.Seconds, col = "steelblue", lwd = 2)
+
+#as you can see the data is not normal is right-skewed (or positively skewed) because we see the upper end of the Q-Q plot to deviate from the straight line and the lower and follows a straight line then the curve has a longer till to its right 
+
+rm(upper_control_limit, meanData, nrow, qnorm, sdData, probability_exceed_UCL)
+
+```
+
+
+## {.toc-ignore}
+
+`Conclusion` : our main observations regarding the analisis are:
+
+- The upper bound with a normal approximation is very close the mean of the waiting time (Upper bound= 460, Mean= 441) but with this analysis we do not consider information on the behavior of extreme values, which is key to reducing risk --> central limit theorem.
+- 46% of the time we will exceed the upper limit.
+- In the QQ-plot we can confirm that the data is not normal distributed in the limits, because it is right-skewed (or positively skewed) due to the desviation of the straight line in both extrems. 
+
+
+## Exercise C
+
+> The aim of this analysis is to focus on negative effects (long wait times). Explain how you would proceed using 1) a block maxima and 2) a peaks-over-threshold approach. For each method, carry out the required data aggregation and transformation.
+
+### Block Maxima approach {.tabset .tabset-fade .tabset-pills}
+
+We have proposed the following steps:
+
+- First, we need to obtain our $M_{n,i}$, where $n$ is the length of the block--> in this case we have choosen weekly because we only have 2 years of data, that is quite short for analyzed by year.
+
+`Block Maxima:` $$M_{i}=max\{X_{(i−1)n+1},\cdots,X_{in}\},i=1,⋯,m$$
+
+- Then, we fit the a Generalized extrem Value, assuming that it follows \(GEV(\mu_{n},\sigma_{n},\xi)\) distribution and we will focus on maximize the log-likelihood and the estimation of the parameters.  
+
+- In this step, we decide to test if the parameters correspond to the Gumbel distribution. 
+
+- Finally, we asses the model and compute m-year return levels.
+
+#### Divide data {-}
+
+```{r ,include=FALSE, warning=FALSE, message=FALSE, echo=FALSE}
+
+# load required packages
+library(extRemes)
+library(distillery)
+library(xts)
+library(evd)
+library(EnvStats)
+
+```
+
+```{r bm1, warning=FALSE, message=FALSE, echo=TRUE}
+
+#we should first extract the maximum temperature values-->  block maxima.
+
+#week variable creation
+# derive AMS for maximum precipitation
+
+data_ts <- xts::xts(data$Average.Wait.Seconds, order.by = data$Date) #time series creation
+wms_data <- xts::apply.weekly(data_ts, max) #create the weekly maximal serie
+
+
+```
+
+#### Plot {-}
+
+```{r plotbm, message=FALSE, warning=FALSE, echo=FALSE}
+
+##############plot####################
+
+data_ts_dataframe<- data.frame(as.matrix(data_ts), Date=time(data_ts))
+wms_data_frame<- data.frame(as.matrix(wms_data), Date=time(wms_data))
+
+names(data_ts_dataframe)<-c("Average.Wait.Seconds", "Date")
+data_ts_dataframe$Date<- as.Date(data_ts_dataframe$Date)
+names(wms_data_frame)<-c("Average.Wait.Seconds", "Date")
+wms_data_frame$Date<- as.Date(wms_data_frame$Date)
+
+
+ggplot() + 
+  geom_line(data = data_ts_dataframe, aes(x = Date, y = Average.Wait.Seconds), color = "black") +
+  geom_point(data = wms_data_frame , aes(x = Date, y = Average.Wait.Seconds), color = "red") +
+  theme_bw()+
+  scale_x_date(limits = as.Date(c("2017-01-03","2018-10-26"))) +
+  labs(x = "Date", y = "Average Wait (Seconds)",  
+       title = "Weekly division",
+       subtitle ="" )+
+  theme(plot.title = element_text(face = "bold", hjust = 0.5)) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5, size = 8)) +
+  theme(axis.text.y = element_text(hjust = 0.5, size = 8))
+
+rm(data_ts_dataframe, wms_data_frame)
+
+#According to the Fisher–Tippett–Gnedenko theorem, the distribution of block maxima can be approximated by a generalized extreme value distribution.
+
+```
+
+
+#### Fit to GEV {-}
+
+```{r , echo=FALSE, include=FALSE, warning=FALSE, message=FALSE}
+
+gev.fit <- ismev::gev.fit(as.vector(wms_data),show = F)
+
+```
+
+```{r distributionBM , echo=TRUE, warning=FALSE, message=FALSE}
+
+#According to the Fisher–Tippett–Gnedenko theorem, the distribution of block maxima can be approximated by a generalized extreme value distribution.
+
+gev.fit2 <- extRemes::fevd(as.vector(wms_data),method = "MLE", type = "GEV")
+
+```
+
+
+```{r table_parameters , echo=FALSE, warning=FALSE, message=FALSE}
+
+#######################summary table#####################
+
+summary_table <- rbind.data.frame(gev.fit2$results$par, unname(gev.fit$se) )
+summary_table <- round(summary_table, 2)
+
+colnames(summary_table ) <- c("Location", "Scale", "Shape")
+rownames(summary_table ) <- c("Estimates", "Std.errors")
+
+kableExtra::kable(summary_table, caption = "This table show the parameters of the GEV fit model")%>%
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+
+```
+
+#### Testing Parameters {-}
+
+```{r test-distribution, echo=TRUE, warning=FALSE, message=FALSE}
+
+######Testing the Gumbel distribution (ξ=0) hypothesis with LRT#####################
+#################################################################################
+
+gev_gumb <- fevd(as.vector(wms_data), type="Gumbel", units="deg C")
+
+test_gumbel<- lr.test(gev_gumb,gev.fit2)
+
+test_gumbel
+
+#p>0.05 --> leads us to not reject the Gumbel hypothesis 
+########################################################################
+
+```
+
+#### Plot {-}
+
+```{r bmfit-plot , echo=FALSE, warning=FALSE, message=FALSE, fig.asp=1.5}
+
+rm(summary_table, gev_gumb, test_gumbel)
+
+################## diagnostic PLOTS
+plot(gev.fit2)
+
+```
+
+### {.toc-ignore}
+
+`Conclusion` : our main observations are the following:
+
+- Even if the shape value is negative it is small enough to fit a Gumbel distribution as we test with the measure of likelihood-ratio test.
+
+*we are going to perform the analysis of the plot of the fit in the question D.*
+
+
+### Peaks-over-theshold approach {.tabset .tabset-fade .tabset-pills}
+
+We have proposed the following steps:
+
+- First, we need stablish a large enough treshold \(u\), where the following formule need to be fullfill: $$\mathbb{P}\left(X_{i}-u>y|X_{i}>u\right)$$ In order to do that, we are going to run a mean residual plot and then we will select the value where the plot start looks linear.
+
+- Then, we fit the all the dataset to a Generaliaze Pareto distribution.  
+
+- Finally, we asses the model and compute m-year return levels.
+
+#### Setting the threshold{-}
+
+```{r setting-threshold, warning=FALSE, message=FALSE, echo=FALSE}
+
+# The idea is to ﬁnd the lowest threshold where the plot is nearly linear;
+mrlplot(as.vector(data_ts), main="Mean Residual Daily Plot- Stablish threshold")
+abline(v=720, col="red")
+
+#around 750 start to be linear
+threshold <- 720
+
+
+```
+
+#### Plot data {-}
+
+```{r threshold-plot, warning=FALSE, message=FALSE, echo=FALSE}
+
+plot(x = rep(1:447, each = n), y = unlist(data_ts), main = "Peak Over Thresholds",
+     sub = paste("threshold =", threshold), xlab = "series", ylab = "value")
+abline(h = threshold, col = "red")
+
+```
+
+#### Fit GP {-}
+
+```{r fit-gp, warning=FALSE, message=FALSE, echo=TRUE}
+
+# maximum likelihood estimation
+pot.fit <- fevd(as.vector(data_ts), method = "MLE", 
+                type="GP", 
+                threshold = threshold)
+
+```
+
+#### Plot GP {-}
+
+```{r gp-plot, fig.asp=1.5 , warning=FALSE, message=FALSE, echo=FALSE}
+
+# diagnostic plots
+plot(pot.fit)
+
+```
+
+### {.toc-ignore}
+
+`Conclusion` : our main observations are the following.
+
+- We have changed the threshold level a couple of times and we chose the value 700 since in the density graph we can see what the model captures better.
+
+*we are going to perform the analysis of the plot of the fit in the question D.*
+
+## Exercise D {.tabset .tabset-fade .tabset-pills}
+
+> Propose a model for the data you have processed in the previous question. Make sure to justify your model choice using residuals and goodness-of-fit tests. (Hint: you may use the evd package.)
+
+Now,  we will evaluate the goodness of fit and the quantiles plot
+
+### Goodness-of-fit
+
+<div class = "row">
+<div class = "col-md-6">
+
+```{r ,warning=FALSE, message=FALSE, echo=FALSE, fig.asp=1.2}
+
+### goodness of fit gev
+#print(EnvStats::gofTest(wms_data, distribution = "gev",test = "ks"))
+plot.gof(EnvStats::gofTest(wms_data, distribution = "gev",test = "ks"))
+
+
+```
+</div>
+
+<div class = "col-md-6">
+```{r ,warning=FALSE, message=FALSE, echo=FALSE, fig.asp=1.2}
+
+data_extreme_gpd<- data %>%
+                      filter(Average.Wait.Seconds >= threshold)
+
+pareto_extreme<- EnvStats::epareto(data_extreme_gpd$Average.Wait.Seconds, 
+                                   method = "mle")# Maximum likelihood
+### goodness of fit gp, #Kolmogorov-Smirnov
+#print(EnvStats::gofTest(data, distribution = "pareto",test = "ks"))
+
+plot.gof(gofTest(data_extreme_gpd, distribution = "pareto",test = "ks"))
+
+```
+</div>
+</div>
+
+### Quantile plot
+
+```{r ,warning=FALSE, message=FALSE, echo=FALSE, fig.cap=" Quantile plot GEV-GP"}
+
+par(mfrow=c(1,2))
+plot(gev.fit2, type = "qq2") 
+plot(pot.fit, type = "qq2")
+
+```
+
+## {.toc-ignore}
+
+
+`Conclusion` : our main observations regarding the analisis are the following.
+
+- As you can see in the charts, the GPD model has a better capture of the information at the beginning and in the middle of the data. Moreover, the GEV fit is more appropiate for the extreme values. 
+
+- In addittion, the AICs of the **GP model** is the one that show a better fit of the data. AIC(GEV)= 1242.5 and AIC(GP)= 524.13. 
+
+- Finally, we will choose the GPD model because the GEV has some loss of information due to the fact that in some blocks must have more than one extreme. In addition, Pareto aproximation is focus on model all the values that exceed the threshold meaning that it measures better the tail distribution. 
+- We want to avoid overfitting that  is more common with the GEV model.
+
+## Exercise E {.tabset .tabset-fade .tabset-pills}
+
+> Finally, use your model to derive an upper control limit or confidence line for the waiting times at the one-year return level.
+
+### Computing CI{-}
+
+```{r selected CI, warning=FALSE, message=FALSE, echo=FALSE}
+
+#####################Confidence intervals#############################################
+#for being able to compute it with r 
+
+pot.fit2 <- eva::gpdFit(as.vector(data_ts), method = "mle", 
+                threshold = threshold)
+
+CI_prof_pot<- eva::gpdRl(pot.fit2, 1)
+
+#####################Summary tab#############################################
+
+values<- c( round(as.numeric(CI_prof_pot[1]),2), 
+            round(as.numeric(CI_prof_pot$CI[1]),2), 
+            round(as.numeric(CI_prof_pot$CI[2]),2))
+            
+name<- c( "one year return level","Lower bound", "Upper bound")
+
+summarytab<- data.frame(name,values)
+
+kableExtra::kable(summarytab, caption = "Confidence interval for one-year return level")%>%
+  kableExtra::kable_styling(bootstrap_options = c("striped"), full_width = F) 
+
+
+rm(name,values)
+  
+```
+
+### Plots Bounds {-}
+
+```{r plot-bound, warning=FALSE, message=FALSE, echo=FALSE}
+
+#lets us add the bounderies
+hist(as.vector(data_ts), 1, col = "lightblue",
+     xlim = c(800, 1300), prob = T, ylim = c(0, 0.0002),
+     xlab = "Waiting time",
+     main = "95% CI for 1-yr RL")
+xg <- seq(0, 1700, len = 1000)
+mle <- pot.fit$results$par
+lines(xg, dgpd(xg, loc = 600,
+               scale = mle[1], shape = mle[2]))
+abline(v = CI_prof_pot$CI[1], lty = 3, col = "red")
+abline(v = CI_prof_pot[1], lty = 3, col = "red")
+abline(v = CI_prof_pot$CI[2], lty = 3, col = "red")
+legend("topleft", legend = c( "Prof"),
+       col = c("red"), lty = c(2, 3))
+
+
+```
+
+## {.toc-ignore}
+
+`Conclusion` :
+
+- Meaning that once a year we are going to exceed the value of 1140.82 seconds for the waiting time with a 95% of confidence. 
