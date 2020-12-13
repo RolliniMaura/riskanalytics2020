@@ -432,39 +432,7 @@ plot(pot.fit)
 
 > Propose a model for the data you have processed in the previous question. Make sure to justify your model choice using residuals and goodness-of-fit tests. (Hint: you may use the evd package.)
 
-Now,  we will evaluate the goodness of fit and the quantiles plot
-
-### Goodness-of-fit
-
-<div class = "row">
-<div class = "col-md-6">
-
-```{r ,warning=FALSE, message=FALSE, echo=FALSE, fig.asp=1.5}
-
-### goodness of fit gev
-#print(EnvStats::gofTest(wms_data, distribution = "gev",test = "ks"))
-plot.gof(EnvStats::gofTest(wms_data, distribution = "gev",test = "ks"))
-
-
-```
-</div>
-
-<div class = "col-md-6">
-```{r ,warning=FALSE, message=FALSE, echo=FALSE, fig.asp=1.5}
-
-data_extreme_gpd<- data %>%
-                      filter(Average.Wait.Seconds >= threshold)
-
-pareto_extreme<- EnvStats::epareto(data_extreme_gpd$Average.Wait.Seconds, 
-                                   method = "mle")# Maximum likelihood
-### goodness of fit gp, #Kolmogorov-Smirnov
-#print(EnvStats::gofTest(data, distribution = "pareto",test = "ks"))
-
-plot.gof(gofTest(data_extreme_gpd, distribution = "pareto",test = "ks"))
-
-```
-</div>
-</div>
+Now,  we will evaluate the goodness of fit with the kolmorov test and the analysis of the quantil plot.
 
 ### Quantile plot
 
@@ -476,17 +444,53 @@ plot(pot.fit, type = "qq2")
 
 ```
 
+
+### Goodness-of-fit
+
+<div class = "row">
+<div class = "col-md-6">
+
+```{r ,warning=FALSE, message=FALSE, echo=FALSE, fig.asp=1.2}
+
+### goodness of fit gev
+#print(EnvStats::gofTest(wms_data, distribution = "gev",test = "ks"))
+plot.gof(EnvStats::gofTest(wms_data, distribution = "gev",test = "ks"))
+
+
+```
+</div>
+
+<div class = "col-md-6">
+```{r ,warning=FALSE, message=FALSE, echo=FALSE, fig.asp=1.2}
+
+data_extreme_gpd<- data %>%
+                      filter(Average.Wait.Seconds >= threshold)
+
+pareto_extreme<- EnvStats::epareto(data_extreme_gpd$Average.Wait.Seconds, 
+                                   method = "mle")# Maximum likelihood
+
+### goodness of fit gp, #Kolmogorov-Smirnov
+#print(EnvStats::gofTest(data, distribution = "pareto",test = "ks"))
+
+plot.gof(gofTest(data_ts, distribution = "pareto",test = "ks" ))
+
+```
+</div>
+</div>
+
 ## {.toc-ignore}
 
 
 `Conclusion` : our main observations regarding the analisis are the following.
+
+- We are going to focus more in the Quantile plot instead of the Kolmogorov-Smirnov because for the second one, we will need more data. 
 
 - As you can see in the charts, the GPD model has a better capture of the information at the beginning and in the middle of the data. Moreover, the GEV fit is more appropiate for the extreme values. 
 
 - In addittion, the AICs of the **GP model** is the one that show a better fit of the data. AIC(GEV)= 1242.5 and AIC(GP)= 524.13. 
 
 - Finally, we will choose the GPD model because the GEV has some loss of information due to the fact that in some blocks must have more than one extreme. In addition, Pareto aproximation is focus on model all the values that exceed the threshold meaning that it measures better the tail distribution. 
-- We want to avoid overfitting that  is more common with the GEV model.
+- We want to avoid overfitting that  is more common with the GEV model (as we see in the plot).
 
 ## Exercise E {.tabset .tabset-fade .tabset-pills}
 
