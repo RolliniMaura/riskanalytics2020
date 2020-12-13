@@ -439,7 +439,7 @@ Now,  we will evaluate the goodness of fit and the quantiles plot
 <div class = "row">
 <div class = "col-md-6">
 
-```{r ,warning=FALSE, message=FALSE, echo=FALSE, fig.asp=1.2}
+```{r ,warning=FALSE, message=FALSE, echo=FALSE, fig.asp=1.5}
 
 ### goodness of fit gev
 #print(EnvStats::gofTest(wms_data, distribution = "gev",test = "ks"))
@@ -450,7 +450,7 @@ plot.gof(EnvStats::gofTest(wms_data, distribution = "gev",test = "ks"))
 </div>
 
 <div class = "col-md-6">
-```{r ,warning=FALSE, message=FALSE, echo=FALSE, fig.asp=1.2}
+```{r ,warning=FALSE, message=FALSE, echo=FALSE, fig.asp=1.5}
 
 data_extreme_gpd<- data %>%
                       filter(Average.Wait.Seconds >= threshold)
